@@ -17,7 +17,7 @@ clean:
 	rm -rf $(BUILD_DIR)/$(NAME)
 
 deps:
-	go get golang.org/x/vgo
+	go get -v golang.org/x/vgo
 
 $(BUILD_DIR)/$(NAME):
 	GOOS=$(GOOS) CGO_ENABLED=0 vgo build $(BUILD_OPTS) $(LD_OPTS) -o $(BUILD_DIR)/$(NAME) $(SRC_FILES)
