@@ -6,6 +6,7 @@ jobs:
       # specify the version
       - image: golang:1.11.5
     steps:
+      - run: make deps
       - checkout
       - run: make all
       - store_artifacts:
