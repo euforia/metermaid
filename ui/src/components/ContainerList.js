@@ -24,36 +24,56 @@ const styles = theme => ({
     padding: theme.spacing.unit*3,
   },
   light: {
-    color: '#737373',
+    color: '#757575',
   }
 });
 
+
+function nodeFromHeaders(headers) {
+    return {
+        name: headers['node-name'],
+        address: headers['node-addr'],
+        cpu: parseInt(headers['node-cpu']),
+        memory: parseInt(headers['node-memory']),
+    };
+}
+
 class ContainerList extends Component {
     state = {
+        node: {},
         containers: [],
     };
 
     componentDidMount() {   
-        axios.get(this.props.node.address)
+        axios.get(this.props.source)
         .then(resp => {
-          this.setState({containers: resp.data});
+          var node = nodeFromHeaders(resp.headers);
+          var data = resp.data;
+          for (var i = 0; i < data.length; i++) {
+            data[i].PercentMemory = data[i].Memory > 0 ? ((data[i].Memory/node.memory)*100).toFixed(0) : 100;
+            data[i].PercentCPU = data[i].CPUShares > 0 ? ((data[i].CPUShares/node.cpu)*100).toFixed(0) : 100;
+          }
+          this.setState({containers: resp.data, node: node});
         });
     }
     
     render() {
-        const { classes, node } = this.props;
-        const { containers } = this.state;
+        const { classes } = this.props;
+        const { containers, node } = this.state;
         return (
             <Paper className={classes.root}>
                 <div className={classes.header}>
                     <Grid container spacing={0} alignItems="center">
-                        <Grid item xs={10}><b>{node.name}</b></Grid>
-                        <Grid item xs={2}>
+                        <Grid item xs={9}>
+                            <div>{node.name}</div>
+                            <div><small className={classes.light}>{node.address}</small></div>
+                        </Grid>
+                        <Grid item xs={3}>
                             <Grid container spacing={0} alignItems="center">
                                 <Grid item xs={6}><small className={classes.light}>CPU:</small></Grid>
-                                <Grid item xs={6}>{node.cpu} <small>MHz</small></Grid>
+                                <Grid item xs={6}>{node.cpu} <small>shares</small></Grid>
                                 <Grid item xs={6}><small className={classes.light}>Memory:</small></Grid>
-                                <Grid item xs={6}>{node.memory} <small>MB</small></Grid>
+                                <Grid item xs={6}>{node.memory === 0 ? 0 : node.memory/(1024*1024)} <small>MB</small></Grid>
                             </Grid>
                         </Grid>
                     </Grid>
@@ -62,8 +82,8 @@ class ContainerList extends Component {
                     <TableHead>
                     <TableRow>
                         <TableCell>Name</TableCell>
-                        <TableCell align="center">CPU</TableCell>
-                        <TableCell align="center">Memory</TableCell>
+                        <TableCell align="center">CPU (shares)</TableCell>
+                        <TableCell align="center">Memory (MB)</TableCell>
                         <TableCell align="center">Run Time</TableCell>
                         <TableCell align="center">Alloc Time</TableCell>
                     </TableRow>
@@ -73,8 +93,8 @@ class ContainerList extends Component {
                         return (
                             <TableRow key={row.ID}>
                                 <TableCell component="th" scope="row">{row.Name}</TableCell>
-                                <TableCell align="center">{row.CPUShares}</TableCell>
-                                <TableCell align="center">{row.Memory}</TableCell>
+                                <TableCell align="center">{row.CPUShares}<small className={classes.light}> ({row.PercentCPU}%)</small></TableCell>
+                                <TableCell align="center">{row.Memory === 0 ? 0 : row.Memory/(1024*1024)}<small className={classes.light}> ({row.PercentMemory}%)</small></TableCell>
                                 <TableCell align="center"><TimeTicker start={row.Start} stop={row.Stop} /></TableCell>
                                 <TableCell align="center"><TimeTicker start={row.Create} stop={row.Destroy} /></TableCell>
                             </TableRow>

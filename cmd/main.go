@@ -46,6 +46,9 @@ func initGossip(logger *zap.Logger, node *metermaid.Node) (*gossip.Gossip, *goss
 	gconf.AdvertiseAddr = advHost
 	gconf.AdvertisePort, _ = iputil.PortFromString(advPort)
 
+	node.Name = gconf.Name
+	node.Address = advHost + ":" + advPort
+
 	gsp, err := gossip.New(gconf)
 
 	pconf := gossip.DefaultLANPoolConfig(222)
@@ -117,7 +120,7 @@ func main() {
 		logger.Info("update loop exiting")
 	}()
 
-	capi := &containerAPI{"/container", contStore}
+	capi := &containerAPI{"/container", node, contStore}
 	http.Handle("/container/", capi)
 	napi := &nodeAPI{"/node", gpool}
 	http.Handle("/node/", napi)

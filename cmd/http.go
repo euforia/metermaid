@@ -2,10 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"mime"
 	"net/http"
 	"path"
 	"strings"
+
+	"github.com/euforia/metermaid"
 
 	"github.com/euforia/gossip"
 	"github.com/euforia/metermaid/storage"
@@ -32,6 +35,7 @@ func handleUI(w http.ResponseWriter, r *http.Request) {
 
 type containerAPI struct {
 	prefix string
+	node   *metermaid.Node
 	store  storage.Containers
 }
 
@@ -40,7 +44,12 @@ func (api *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p == "/" {
 		list, _ := api.store.List()
 		b, _ := json.Marshal(list)
+		w.Header().Set("Node-Name", api.node.Name)
+		w.Header().Set("Node-Addr", api.node.Address)
+		w.Header().Set("Node-CPU", fmt.Sprintf("%d", api.node.CPUShares))
+		w.Header().Set("Node-Memory", fmt.Sprintf("%d", api.node.Memory))
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Expose-Headers", "Node-Name,Node-Addr,Node-CPU,Node-Memory")
 		w.WriteHeader(200)
 		w.Write(b)
 		return
@@ -74,6 +83,7 @@ func (api *nodeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	list := api.pool.Members()
 	b, err := json.Marshal(list)
 	if err == nil {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.WriteHeader(200)
 		w.Write(b)
 		return

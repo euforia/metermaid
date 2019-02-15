@@ -13,6 +13,8 @@ type NodeCostProvider interface{}
 
 // Node holds information about a given matchine
 type Node struct {
+	Name    string
+	Address string
 	// CPUShares in MHz
 	CPUShares uint64
 	// Memory in bytes
