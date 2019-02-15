@@ -16,7 +16,10 @@ LD_OPTS = -ldflags="-X main.version=$(VERSION) -X main.buildtime=$(BUILDTIME) -w
 clean:
 	rm -rf $(BUILD_DIR)/$(NAME)
 
+deps:
+	go get golang.org/x/vgo
+
 $(BUILD_DIR)/$(NAME):
-	GOOS=$(GOOS) vgo build $(BUILD_OPTS) $(LD_OPTS) -o $(BUILD_DIR)/$(NAME) $(SRC_FILES)
+	GOOS=$(GOOS) CGO_ENABLED=0 vgo build $(BUILD_OPTS) $(LD_OPTS) -o $(BUILD_DIR)/$(NAME) $(SRC_FILES)
 
 all: $(BUILD_DIR)/$(NAME)
