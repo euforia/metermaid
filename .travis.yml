@@ -1,10 +1,15 @@
 language: go
-
 go:
 - 1.11.5
-
 before_script:
-  - make deps
-
-script: 
-  - make all
+- make deps
+script:
+- make dist
+deploy:
+  provider: releases
+  api_key:
+    secure: OPUcy2YVbsMve+nhhzFXiyRXFFBeaTrnM2znFKHK7V5JYw3sAsoZBL5RfkQVe4kPLtohylnBxPE50Lf4XJQWkK25oaYbRad/YfE0dhbUCKY+PDAtZMxC8wFd+grYccDwPEc13NwVXPLQcVeqdiDHy9H1Dqoj8QK2+m7Kd87/Q4CZFg06HaL1U+vSh65DWRhSiYHokRH7GplvaUoobwkwlZoj5ZJMzeegp4zQsiSLvzE5yNNtht/dMCxFXtTyZm4isT7lSIYVB8UMer2fGpyqa5AuBj0lUy3N4c/YXCWzvlRwMB/pxJCOi0Ddz0z2tmyk00DadlzaPGfKqPdJLuru4P8sUBvAZbJqtH93+6j5JKknQv3Sq6C74YbEfX5pPpsvLMa5sG+WnmbjJdf8Xlt5fQAIGihW46d2b2tOGLOEiMu/uziaHJYhRl9xcCm1oWrrHGexqcOrexvlqsqK7Iz2j+0OrQYmjgtcQtViwhQXL2pIESB8tBg1Zsv9VLuEwe42KJuxTpA9dPVkt9AmcH7QQvO8jDqd1UjkdCaQn6RS5Ly1eTTFcI5gDPtDRag65X1AUqA+D8MLZa1IgYp/Rtr3f4pjyZC6xHa9z0s0cgILfEPDZDvzNkaXUoJI4KzyHtWq2G4jXGw5mhetC1Le6zendTKuWgopAmgZHZ68t+4yZGo=
+  file: "./build/*.tgz"
+  file_glob: true
+  on:
+    repo: euforia/metermaid

@@ -22,4 +22,7 @@ deps:
 $(BUILD_DIR)/$(NAME):
 	GOOS=$(GOOS) CGO_ENABLED=0 vgo build $(BUILD_OPTS) $(LD_OPTS) -o $(BUILD_DIR)/$(NAME) $(SRC_FILES)
 
+dist: $(BUILD_DIR)/$(NAME)
+	cd $(BUILD_DIR) && tar -czf $(NAME)-$(GOOS).tgz $(NAME)
+
 all: $(BUILD_DIR)/$(NAME)
