@@ -2,12 +2,33 @@ package main
 
 import (
 	"encoding/json"
+	"mime"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/euforia/gossip"
 	"github.com/euforia/metermaid/storage"
+	"github.com/euforia/metermaid/ui"
 )
+
+func handleUI(w http.ResponseWriter, r *http.Request) {
+	upath := r.URL.Path[1:]
+	if upath == "" {
+		upath = "index.html"
+	}
+
+	data, err := ui.Asset(upath)
+	if err == nil {
+		contentType := mime.TypeByExtension(path.Ext(upath))
+		w.Header().Add("Content-Type", contentType)
+		w.WriteHeader(200)
+		w.Write(data)
+		return
+	}
+
+	w.WriteHeader(404)
+}
 
 type containerAPI struct {
 	prefix string
@@ -19,6 +40,7 @@ func (api *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p == "/" {
 		list, _ := api.store.List()
 		b, _ := json.Marshal(list)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.WriteHeader(200)
 		w.Write(b)
 		return

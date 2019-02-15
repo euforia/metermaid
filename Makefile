@@ -13,11 +13,26 @@ BUILD_DIR = ./build
 BUILD_OPTS = -a -tags netgo -installsuffix netgo
 LD_OPTS = -ldflags="-X main.version=$(VERSION) -X main.buildtime=$(BUILDTIME) -w"
 
-clean:
-	rm -rf $(BUILD_DIR)/$(NAME)
+clean-$(NAME):
+	rm -rf $(BUILD_DIR)
+
+clean-ui:
+	rm -rf ui/build
+	rm -f ui/ui.go
+
+clean: clean-$(NAME) clean-ui
 
 deps:
 	go get -v golang.org/x/vgo
+
+ui/build:
+	cd ./ui/ && yarn --verbose build
+
+ui/ui.go:
+	cd ./ui/build && go-bindata -pkg ui -o ../ui.go ./...
+
+.PHONY: ui
+ui: ui/build ui/ui.go
 
 $(BUILD_DIR)/$(NAME):
 	GOOS=$(GOOS) CGO_ENABLED=0 vgo build $(BUILD_OPTS) $(LD_OPTS) -o $(BUILD_DIR)/$(NAME) $(SRC_FILES)

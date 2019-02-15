@@ -121,6 +121,7 @@ func main() {
 	http.Handle("/container/", capi)
 	napi := &nodeAPI{"/node", gpool}
 	http.Handle("/node/", napi)
+	http.HandleFunc("/", handleUI)
 
 	go func(ln net.Listener) {
 		logger.Info("http server", zap.String("address", *bindAddr))

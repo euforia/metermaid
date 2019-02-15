@@ -12,7 +12,9 @@ job "metermaid" {
     }
 
     group "primary" {
+        // For testing purposes
         count = 1
+
         task "metermaid" {
             artifact {
                 source = "https://github.com/euforia/metermaid/releases/download/${NOMAD_META_VERSION}/metermaid-linux.tgz"
