@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/client"
+
+	"github.com/euforia/metermaid/types"
 )
 
 // DockerClient ...
@@ -29,10 +31,11 @@ func NewDockerClient(apiVersion string) (*DockerClient, error) {
 	return nil, err
 }
 
-func (client *DockerClient) ContainerStats(ctx context.Context, id string) (*Container, error) {
+// ContainerStats returns stats for a container by the given id
+func (client *DockerClient) ContainerStats(ctx context.Context, id string) (*types.Container, error) {
 	details, err := client.ContainerInspect(ctx, id)
 	if err == nil {
-		cont := &Container{
+		cont := &types.Container{
 			ID:        details.ID,
 			Name:      details.Name,
 			Labels:    details.Config.Labels,

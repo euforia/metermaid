@@ -2,22 +2,26 @@ package metermaid
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/docker/docker/api/types"
+	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"go.uber.org/zap"
+
+	"github.com/euforia/metermaid/types"
 )
 
 // MeterMaid  ...
 type MeterMaid interface {
+	Updates() <-chan types.Container
 	Stop() error
 }
 
 type meterMaid struct {
 	docker *DockerClient
 
-	containers map[string]*Container
+	containers map[string]*types.Container
+
+	out chan types.Container
 
 	cancel context.CancelFunc
 	done   chan struct{}
@@ -26,7 +30,7 @@ type meterMaid struct {
 }
 
 // New returns a new MeterMaid interface
-func New() (MeterMaid, error) {
+func New(logger *zap.Logger) (MeterMaid, error) {
 	client, err := NewDockerClient("")
 	if err != nil {
 		return nil, err
@@ -34,10 +38,15 @@ func New() (MeterMaid, error) {
 
 	mm := &meterMaid{
 		docker:     client,
-		containers: make(map[string]*Container),
-		log:        zap.NewExample(),
+		containers: make(map[string]*types.Container),
+		out:        make(chan types.Container, 32),
 		done:       make(chan struct{}, 1),
+		log:        logger,
 	}
+	if mm.log == nil {
+		mm.log, _ = zap.NewDevelopment()
+	}
+
 	go mm.run()
 	return mm, nil
 }
@@ -46,9 +55,9 @@ func (mm *meterMaid) run() {
 	ctx := context.Background()
 	ctx, mm.cancel = context.WithCancel(ctx)
 
-	mm.inspectRunningContainers(ctx)
+	mm.seedWithRunning(ctx)
 
-	events, errs := mm.docker.Events(ctx, types.EventsOptions{})
+	events, errs := mm.docker.Events(ctx, dtypes.EventsOptions{})
 	mm.log.Info("listening for events")
 	for {
 		select {
@@ -59,11 +68,17 @@ func (mm *meterMaid) run() {
 			mm.log.Info("docker event error", zap.Error(err))
 
 		case <-ctx.Done():
+			mm.log.Info("event loop exiting")
+			close(mm.out)
 			close(mm.done)
 			return
 
 		}
 	}
+}
+
+func (mm *meterMaid) Updates() <-chan types.Container {
+	return mm.out
 }
 
 func (mm *meterMaid) handleEvent(event events.Message) {
@@ -77,67 +92,79 @@ func (mm *meterMaid) handleEvent(event events.Message) {
 		return
 	}
 
+	var cont *types.Container
+
 	switch event.Action {
 	case "create":
-		cont, err := mm.docker.ContainerStats(context.Background(), event.Actor.ID)
+		var err error
+		cont, err = mm.docker.ContainerStats(context.Background(), event.Actor.ID)
 		if err == nil {
 			mm.containers[event.Actor.ID] = cont
-			mm.log.Info("tracking", zap.String("id", event.Actor.ID))
+			mm.log.Debug("tracking", zap.String("id", event.Actor.ID), zap.String("action", "create"))
+		} else {
+			mm.log.Info("failed to get container details",
+				zap.String("id", event.Actor.ID),
+				zap.Error(err),
+			)
 			return
 		}
-		mm.log.Info("failed to get container details",
-			zap.String("id", event.Actor.ID),
-			zap.Error(err),
-		)
-
 	// case "attach":
 	case "start":
-		if cont, ok := mm.containers[event.Actor.ID]; ok {
+		var ok bool
+		if cont, ok = mm.containers[event.Actor.ID]; ok {
 			cont.Start = event.TimeNano
 		}
 	// case "resize":
 	case "die":
-		if cont, ok := mm.containers[event.Actor.ID]; ok {
+		var ok bool
+		if cont, ok = mm.containers[event.Actor.ID]; ok {
 			cont.Stop = event.TimeNano
-			mm.log.Info("container",
+			mm.log.Debug("container died",
 				zap.String("id", cont.ID),
 				zap.Duration("runtime", cont.RunTime()),
 			)
 		}
 	case "destroy":
-		if cont, ok := mm.containers[event.Actor.ID]; ok {
+		var ok bool
+		if cont, ok = mm.containers[event.Actor.ID]; ok {
 			cont.Destroy = event.TimeNano
-			mm.log.Info("container",
+			// Once destroyed we stop tracking the container
+			delete(mm.containers, cont.ID)
+			mm.log.Debug("container destroyed",
 				zap.String("id", cont.ID),
 				zap.Duration("alloctime", cont.AllocatedTime()),
 			)
 		}
-		// TODO
-		// ensure we are tracking this container
-		// if died then do nothing.
 	default:
 		return
 	}
 
-	// log.Printf("---> %+v", event)
+	if cont != nil {
+		mm.out <- *cont
+	}
+
 }
 
-func (mm *meterMaid) inspectRunningContainers(ctx context.Context) {
-	opts := types.ContainerListOptions{All: true}
+//  seedWithRunning gets the list of running containers and populates
+// the initial state.  This is meant to be called once on startup.
+func (mm *meterMaid) seedWithRunning(ctx context.Context) {
+	opts := dtypes.ContainerListOptions{All: true}
 	list, _ := mm.docker.ContainerList(ctx, opts)
+	mm.log.Info("seeding with running containers", zap.Int("count", len(list)))
 
 	for _, cont := range list {
 		scont, err := mm.docker.ContainerStats(ctx, cont.ID)
 		if err == nil {
-			mm.log.Info("tracking", zap.String("id", cont.ID))
-			fmt.Printf("%+v\n", scont)
+			mm.log.Info("tracking", zap.String("id", scont.ID), zap.String("action", "seed"))
 			mm.containers[scont.ID] = scont
+			mm.out <- *scont
 		}
 	}
 }
 
 func (mm *meterMaid) Stop() error {
 	mm.log.Info("stopping")
+	// Stop main loop
 	mm.cancel()
 	// Wait for shutdown
 	<-mm.done

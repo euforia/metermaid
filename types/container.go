@@ -1,7 +1,10 @@
-package metermaid
+package types
 
-import "time"
+import (
+	"time"
+)
 
+// Container holds information about a container that is or was running
 type Container struct {
 	ID        string
 	Name      string
@@ -22,11 +25,18 @@ func (cont *Container) Destroyed() bool {
 
 // RunTime returns duration for which the container was actually running
 func (cont *Container) RunTime() time.Duration {
-	return time.Duration(cont.Stop - cont.Start)
+	return delta(cont.Stop, cont.Start)
 }
 
 // AllocatedTime returns the amount of time container resources were allocated
 // i.e from the time it was created to the time it was completely destroyed
 func (cont *Container) AllocatedTime() time.Duration {
-	return time.Duration(cont.Destroy - cont.Create)
+	return delta(cont.Destroy, cont.Create)
+}
+
+func delta(end, start int64) time.Duration {
+	if d := end - start; d > -1 {
+		return time.Duration(d)
+	}
+	return time.Duration(0)
 }
