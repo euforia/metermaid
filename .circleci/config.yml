@@ -6,7 +6,7 @@ jobs:
       # specify the version
       - image: golang:1.11.5
     steps:
-      - run: make deps
+      - run: go get -v golang.org/x/vgo
       - checkout
       - run: make all
       - store_artifacts:
