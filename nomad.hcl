@@ -1,23 +1,43 @@
 job "metermaid" {
-    type = "system"
+    datacenters = ["us-west-2"]
+    type = "service"
+
+    constraint {
+        attribute = "${meta.enclave}"
+        value     = "shared"
+    }
 
     meta {
-        VERSION = ""
+        VERSION = "v0.1.0"
     }
 
     group "primary" {
+        count = 1
         task "metermaid" {
             artifact {
-                source = "https://github.com/euforia/metermaid/metermaid-linux.tgz"
+                source = "https://github.com/euforia/metermaid/releases/download/${NOMAD_META_VERSION}/metermaid-linux.tgz"
             }
 
             driver = "raw_exec"
             config {
                 command = "local/metermaid"
                 args = [
-                    "-bind-addr", "",
-                    "", "${NOMAD_HOST_ADDR}",
+                    "-bind-addr", "0.0.0.0:${NOMAD_PORT_default}",
+                    "-adv-addr", "${NOMAD_ADDR_default}",
                 ]
+            }
+
+            service {
+                port = "default"
+            }
+
+            resources {
+                cpu    = 100
+                memory = 128
+                network {
+                    mbits = 1
+                    port "default" {}
+                }
             }
         }
     }
