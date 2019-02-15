@@ -16,10 +16,7 @@ LD_OPTS = -ldflags="-X main.version=$(VERSION) -X main.buildtime=$(BUILDTIME) -w
 clean:
 	rm -rf $(BUILD_DIR)/$(NAME)
 
-deps:
-	vgo build
-
 $(BUILD_DIR)/$(NAME):
-	GOOS=$(GOOS) go build $(BUILD_OPTS) $(LD_OPTS) -o $(BUILD_DIR)/$(NAME) $(SRC_FILES)
+	GOOS=$(GOOS) vgo build $(BUILD_OPTS) $(LD_OPTS) -o $(BUILD_DIR)/$(NAME) $(SRC_FILES)
 
 all: $(BUILD_DIR)/$(NAME)
