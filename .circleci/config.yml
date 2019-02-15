@@ -7,7 +7,6 @@ jobs:
       - image: golang:1.11.5
     steps:
       - checkout
-      - run: make deps
       - run: make all
       - store_artifacts:
           path: ./build
