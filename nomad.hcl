@@ -28,6 +28,7 @@ job "metermaid" {
             }
 
             service {
+                name = "metermaid"
                 port = "default"
             }
 
