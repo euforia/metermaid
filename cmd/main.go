@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/hexablock/iputil"
@@ -61,15 +62,18 @@ func initGossip(logger *zap.Logger, node *metermaid.Node) (*gossip.Gossip, *goss
 	}
 
 	if *joinPeer != "" {
+		var peers []string
 		// Check if we should use service discovery to find the peer
 		if _, _, err = iputil.SplitHostPort(*joinPeer); err != nil {
-			_, err := getAddrViaSD(*joinPeer)
+			peers, err = getAddrViaSD(*joinPeer)
 			if err != nil {
 				logger.Fatal("failed to get addresses", zap.Error(err))
 			}
+		} else {
+			peers = []string{*joinPeer}
 		}
 
-		if _, err = gpool.Join([]string{*joinPeer}); err != nil {
+		if _, err = gpool.Join(peers); err != nil {
 			logger.Info("failed to join peer", zap.Error(err))
 		}
 	}
@@ -77,12 +81,11 @@ func initGossip(logger *zap.Logger, node *metermaid.Node) (*gossip.Gossip, *goss
 }
 
 func getAddrViaSD(name string) ([]string, error) {
-	cname, addrs, err := net.DefaultResolver.LookupSRV(context.Background(), "", "", name)
-	fmt.Println(cname, addrs, err)
+	_, addrs, err := net.DefaultResolver.LookupSRV(context.Background(), "", "", name)
 	out := make([]string, len(addrs))
 	if err == nil {
 		for i, addr := range addrs {
-			out[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
+			out[i] = fmt.Sprintf("%s:%d", strings.TrimSuffix(addr.Target, "."), addr.Port)
 		}
 	}
 	return out, err

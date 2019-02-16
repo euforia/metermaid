@@ -8,7 +8,7 @@ require (
 	github.com/euforia/base58 v0.0.0-20180618003404-b32ada3d7107 // indirect
 	github.com/euforia/gossip v0.6.0 // indirect
 	github.com/gogo/protobuf v1.2.0 // indirect
-	github.com/hashicorp/memberlist v0.1.3 // indirect
+	github.com/hashicorp/memberlist v0.1.3
 	github.com/hexablock/iputil v0.0.0-20190214232959-9da1f0d8e0de // indirect
 	github.com/hexablock/log v0.0.0-20180731202806-50981b397262 // indirect
 	github.com/hexablock/vivaldi v0.0.0-20180727225019-07adad3f2b5f // indirect

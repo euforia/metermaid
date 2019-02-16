@@ -62,7 +62,7 @@ class ContainerList extends Component {
                                 <Grid item xs={6}><small className={classes.light}>CPU:</small></Grid>
                                 <Grid item xs={6}>{node.CPUShares} <small>shares</small></Grid>
                                 <Grid item xs={6}><small className={classes.light}>Memory:</small></Grid>
-                                <Grid item xs={6}>{node.Memory === 0 ? 0 : node.Memory/(1024*1024)} <small>MB</small></Grid>
+                                <Grid item xs={6}>{node.Memory === 0 ? 0 : Math.floor(node.Memory/(1024*1024))} <small>MB</small></Grid>
                             </Grid>
                         </Grid>
                     </Grid>
