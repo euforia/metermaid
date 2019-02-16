@@ -45,12 +45,17 @@ func (client *DockerClient) ContainerStats(ctx context.Context, id string) (*typ
 
 		createdAt, _ := time.Parse(time.RFC3339Nano, details.Created)
 		cont.Create = createdAt.UnixNano()
-		startedAt, _ := time.Parse(time.RFC3339Nano, details.State.StartedAt)
-		cont.Start = startedAt.UnixNano()
-		if !details.State.Running {
-			finishAt, _ := time.Parse(time.RFC3339Nano, details.State.FinishedAt)
-			cont.Stop = finishAt.UnixNano()
+
+		if startedAt, err := time.Parse(time.RFC3339Nano, details.State.StartedAt); err == nil {
+			cont.Start = startedAt.UnixNano()
 		}
+
+		if !details.State.Running {
+			if finishAt, err := time.Parse(time.RFC3339Nano, details.State.FinishedAt); err == nil {
+				cont.Stop = finishAt.UnixNano()
+			}
+		}
+
 		return cont, nil
 	}
 	return nil, err
