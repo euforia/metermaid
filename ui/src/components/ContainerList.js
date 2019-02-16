@@ -20,6 +20,13 @@ const styles = theme => ({
   table: {
     minWidth: 700,
   },
+  tableCellNoWrap: {
+    whiteSpace: 'nowrap',
+    padding: theme.spacing.unit*2,
+  },
+  tableCell: {
+    padding: theme.spacing.unit*2,
+  },
   header: {
     padding: theme.spacing.unit*3,
   },
@@ -28,9 +35,25 @@ const styles = theme => ({
   }
 });
 
+function getLabels(list) {
+    var labels = {};
+    for (var i = 0; i<list.length; i++) {
+        for (var k in list[i].Labels) {
+            labels[k] = '';
+        }
+    }
+    var llist = [];
+    for (var l in labels) {
+        llist.push(l);
+    }
+    llist.sort();
+    return llist;
+}
+
 class ContainerList extends Component {
     state = {
         containers: [],
+        labels: [],
     };
 
     componentDidMount() {   
@@ -42,13 +65,18 @@ class ContainerList extends Component {
             data[i].PercentMemory = data[i].Memory > 0 ? ((data[i].Memory/node.Memory)*100).toFixed(0) : 100;
             data[i].PercentCPU = data[i].CPUShares > 0 ? ((data[i].CPUShares/node.CPUShares)*100).toFixed(0) : 100;
           }
-          this.setState({containers: resp.data, node: node});
+          var labels = getLabels(data);
+          this.setState({
+              containers: resp.data,
+              labels: labels,
+            });
         });
     }
     
     render() {
         const { classes, node } = this.props;
-        const { containers } = this.state;
+        const { containers, labels } = this.state;
+
         return (
             <Paper className={classes.root}>
                 <div className={classes.header}>
@@ -70,22 +98,28 @@ class ContainerList extends Component {
                 <Table className={classes.table}>
                     <TableHead>
                     <TableRow>
-                        <TableCell>Name</TableCell>
-                        <TableCell align="center">CPU (shares)</TableCell>
-                        <TableCell align="center">Memory (MB)</TableCell>
-                        <TableCell align="center">Run Time</TableCell>
-                        <TableCell align="center">Alloc Time</TableCell>
+                        <TableCell className={classes.tableCell}>Name</TableCell>
+                        <TableCell className={classes.tableCell} align="center">CPU (shares)</TableCell>
+                        <TableCell className={classes.tableCell} align="center">Memory (MB)</TableCell>
+                        <TableCell className={classes.tableCellNoWrap} align="center">Run Time</TableCell>
+                        <TableCell className={classes.tableCellNoWrap} align="center">Alloc Time</TableCell>
+                        {labels.map(label => {
+                            return <TableCell key={label} className={classes.tableCellNoWrap}>{label}</TableCell>
+                        })}
                     </TableRow>
                     </TableHead>
                     <TableBody>
                     {containers.map(row => {
                         return (
                             <TableRow key={row.ID}>
-                                <TableCell component="th" scope="row">{row.Name}</TableCell>
-                                <TableCell align="center">{row.CPUShares}<small className={classes.light}> ({row.PercentCPU}%)</small></TableCell>
-                                <TableCell align="center">{row.Memory === 0 ? 0 : row.Memory/(1024*1024)}<small className={classes.light}> ({row.PercentMemory}%)</small></TableCell>
-                                <TableCell align="center"><TimeTicker start={row.Start} stop={row.Stop} /></TableCell>
-                                <TableCell align="center"><TimeTicker start={row.Create} stop={row.Destroy} /></TableCell>
+                                <TableCell className={classes.tableCell} component="th" scope="row">{row.Name}</TableCell>
+                                <TableCell className={classes.tableCell} align="center">{row.CPUShares}<small className={classes.light}> ({row.PercentCPU}%)</small></TableCell>
+                                <TableCell className={classes.tableCell} align="center">{row.Memory === 0 ? 0 : row.Memory/(1024*1024)}<small className={classes.light}> ({row.PercentMemory}%)</small></TableCell>
+                                <TableCell className={classes.tableCellNoWrap} align="center"><TimeTicker start={row.Start} stop={row.Stop} /></TableCell>
+                                <TableCell className={classes.tableCellNoWrap} align="center"><TimeTicker start={row.Create} stop={row.Destroy} /></TableCell>
+                                {labels.map(label => {
+                                    return <TableCell key={label} className={classes.tableCellNoWrap}>{row.Labels[label]}</TableCell>
+                                })}
                             </TableRow>
                         );
                     })}
