@@ -17,11 +17,7 @@ class App extends Component {
   componentDidMount() {
     axios.get(API_HOST+'/node/')
     .then(resp => {
-        var data = resp.data;
-        for (var i = 0; i < data.length; i++) {
-          data[i].URL = `http://${data[i].Addr}:${data[i].Port}/container/`;
-        }
-        this.setState({nodes:data});
+        this.setState({nodes:resp.data});
     })
     .catch(err => {
       console.log(err);
@@ -33,7 +29,7 @@ class App extends Component {
     return (
       <div className="App">
         {nodes.map(node => {
-          return <ContainerList key={node.Name} source={node.URL} />
+          return <ContainerList key={node.Name} node={node} />
         })}
       </div>
     );

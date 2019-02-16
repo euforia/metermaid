@@ -28,52 +28,41 @@ const styles = theme => ({
   }
 });
 
-
-function nodeFromHeaders(headers) {
-    return {
-        name: headers['node-name'],
-        address: headers['node-addr'],
-        cpu: parseInt(headers['node-cpu']),
-        memory: parseInt(headers['node-memory']),
-    };
-}
-
 class ContainerList extends Component {
     state = {
-        node: {},
         containers: [],
     };
 
     componentDidMount() {   
-        axios.get(this.props.source)
+        var {node} = this.props;
+        axios.get('http://'+node.Address+'/container/')
         .then(resp => {
-          var node = nodeFromHeaders(resp.headers);
           var data = resp.data;
           for (var i = 0; i < data.length; i++) {
-            data[i].PercentMemory = data[i].Memory > 0 ? ((data[i].Memory/node.memory)*100).toFixed(0) : 100;
-            data[i].PercentCPU = data[i].CPUShares > 0 ? ((data[i].CPUShares/node.cpu)*100).toFixed(0) : 100;
+            data[i].PercentMemory = data[i].Memory > 0 ? ((data[i].Memory/node.Memory)*100).toFixed(0) : 100;
+            data[i].PercentCPU = data[i].CPUShares > 0 ? ((data[i].CPUShares/node.CPUShares)*100).toFixed(0) : 100;
           }
           this.setState({containers: resp.data, node: node});
         });
     }
     
     render() {
-        const { classes } = this.props;
-        const { containers, node } = this.state;
+        const { classes, node } = this.props;
+        const { containers } = this.state;
         return (
             <Paper className={classes.root}>
                 <div className={classes.header}>
                     <Grid container spacing={0} alignItems="center">
                         <Grid item xs={9}>
-                            <div>{node.name}</div>
-                            <div><small className={classes.light}>{node.address}</small></div>
+                            <div>{node.Name}</div>
+                            <div><small className={classes.light}>{node.Address}</small></div>
                         </Grid>
                         <Grid item xs={3}>
                             <Grid container spacing={0} alignItems="center">
                                 <Grid item xs={6}><small className={classes.light}>CPU:</small></Grid>
-                                <Grid item xs={6}>{node.cpu} <small>shares</small></Grid>
+                                <Grid item xs={6}>{node.CPUShares} <small>shares</small></Grid>
                                 <Grid item xs={6}><small className={classes.light}>Memory:</small></Grid>
-                                <Grid item xs={6}>{node.memory === 0 ? 0 : node.memory/(1024*1024)} <small>MB</small></Grid>
+                                <Grid item xs={6}>{node.Memory === 0 ? 0 : node.Memory/(1024*1024)} <small>MB</small></Grid>
                             </Grid>
                         </Grid>
                     </Grid>

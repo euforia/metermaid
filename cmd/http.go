@@ -81,7 +81,13 @@ type nodeAPI struct {
 
 func (api *nodeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	list := api.pool.Members()
-	b, err := json.Marshal(list)
+
+	nodes := make([]metermaid.Node, len(list))
+	for i, item := range list {
+		nodes[i] = *metermaid.NodeFromMemberlistNode(item)
+	}
+
+	b, err := json.Marshal(nodes)
 	if err == nil {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.WriteHeader(200)

@@ -1,6 +1,9 @@
 package metermaid
 
 import (
+	"encoding/binary"
+
+	"github.com/hashicorp/memberlist"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 )
@@ -38,5 +41,14 @@ func NewNode() *Node {
 	return &Node{
 		CPUShares: uint64(mhz),
 		Memory:    m.Total,
+	}
+}
+
+func NodeFromMemberlistNode(in *memberlist.Node) *Node {
+	return &Node{
+		Name:      in.Name,
+		Address:   in.Address(),
+		CPUShares: binary.BigEndian.Uint64(in.Meta[:8]),
+		Memory:    binary.BigEndian.Uint64(in.Meta[8:16]),
 	}
 }
