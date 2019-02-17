@@ -8,9 +8,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/euforia/metermaid"
-
 	"github.com/euforia/gossip"
+	"github.com/euforia/metermaid/node"
 	"github.com/euforia/metermaid/storage"
 	"github.com/euforia/metermaid/ui"
 )
@@ -35,7 +34,7 @@ func handleUI(w http.ResponseWriter, r *http.Request) {
 
 type containerAPI struct {
 	prefix string
-	node   *metermaid.Node
+	node   *node.Node
 	store  storage.Containers
 }
 
@@ -82,9 +81,9 @@ type nodeAPI struct {
 func (api *nodeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	list := api.pool.Members()
 
-	nodes := make([]metermaid.Node, len(list))
+	nodes := make([]node.Node, len(list))
 	for i, item := range list {
-		nodes[i] = *metermaid.NodeFromMemberlistNode(item)
+		nodes[i] = *node.NewFromMemberlistNode(item)
 	}
 
 	b, err := json.Marshal(nodes)

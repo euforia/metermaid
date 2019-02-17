@@ -9,7 +9,7 @@ job "metermaid" {
 
     meta {
         # Replace with version of metermaid to use
-        VERSION = "v0.1.3"
+        VERSION = "v0.1.4"
     }
 
     group "primary" {
@@ -27,6 +27,7 @@ job "metermaid" {
                 args = [
                     "-bind-addr", "0.0.0.0:${NOMAD_PORT_default}",
                     "-adv-addr", "${NOMAD_ADDR_default}",
+                    "-tags", "enclave=${meta.enclave},env=${meta.env}"
                 ]
             }
 

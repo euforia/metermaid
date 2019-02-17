@@ -19,12 +19,14 @@ import (
 	"github.com/euforia/base58"
 	"github.com/euforia/gossip"
 	"github.com/euforia/metermaid"
+	"github.com/euforia/metermaid/node"
 	"github.com/euforia/metermaid/storage"
 )
 
 var (
 	bindAddr = flag.String("bind-addr", "127.0.0.1:8080", "")
 	advAddr  = flag.String("adv-addr", "", "")
+	tagList  = flag.String("tags", "", "key=value, ...")
 	joinPeer = flag.String("join", "", "")
 )
 
@@ -32,7 +34,21 @@ func init() {
 	flag.Parse()
 }
 
-func initGossip(logger *zap.Logger, node *metermaid.Node) (*gossip.Gossip, *gossip.Pool) {
+func parseTags() map[string]string {
+	if *tagList == "" {
+		return nil
+	}
+
+	taglist := strings.Split(*tagList, ",")
+	out := make(map[string]string)
+	for _, tagpair := range taglist {
+		kv := strings.Split(tagpair, "=")
+		out[kv[0]] = kv[1]
+	}
+	return out
+}
+
+func initGossip(logger *zap.Logger, node *node.Node) (*gossip.Gossip, *gossip.Pool) {
 	gconf := gossip.DefaultConfig()
 
 	sh := sha256.Sum256([]byte(*advAddr))
@@ -91,13 +107,28 @@ func getAddrViaSD(name string) ([]string, error) {
 	return out, err
 }
 
-func main() {
+func makeNode() *node.Node {
+	nd := node.New()
+	nd.Meta = node.Metadata()
+	tags := parseTags()
+	if nd.Meta != nil {
+		for k, v := range tags {
+			nd.Meta[k] = v
+		}
+	} else {
+		nd.Meta = tags
+	}
 
+	return nd
+}
+
+func main() {
 	logger, _ := zap.NewDevelopment()
-	node := metermaid.NewNode()
+	nd := makeNode()
 	logger.Info("node stats",
-		zap.Uint64("cpu", node.CPUShares),
-		zap.Uint64("memory", node.Memory),
+		zap.Uint64("cpu", nd.CPUShares),
+		zap.Uint64("memory", nd.Memory),
+		zap.String("tags", *tagList),
 	)
 
 	mm, err := metermaid.New(logger)
@@ -105,7 +136,7 @@ func main() {
 		logger.Fatal("failed to initialize metermaid", zap.Error(err))
 	}
 
-	gsp, gpool := initGossip(logger, node)
+	gsp, gpool := initGossip(logger, nd)
 
 	contStore := storage.NewInmemContainers()
 
@@ -123,7 +154,7 @@ func main() {
 		logger.Info("update loop exiting")
 	}()
 
-	capi := &containerAPI{"/container", node, contStore}
+	capi := &containerAPI{"/container", nd, contStore}
 	http.Handle("/container/", capi)
 	napi := &nodeAPI{"/node", gpool}
 	http.Handle("/node/", napi)

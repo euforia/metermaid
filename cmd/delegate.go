@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/binary"
 
-	"github.com/euforia/metermaid"
+	"github.com/euforia/metermaid/node"
 	"github.com/hashicorp/memberlist"
 	"go.uber.org/zap"
 )
@@ -18,7 +18,7 @@ import (
 // )
 
 type GossipDelegate struct {
-	node metermaid.Node
+	node node.Node
 	log  *zap.Logger
 }
 
@@ -34,7 +34,12 @@ func (del *GossipDelegate) NodeMeta(overhead int) []byte {
 	binary.BigEndian.PutUint64(cpu, del.node.CPUShares)
 	mem := make([]byte, 8)
 	binary.BigEndian.PutUint64(mem, del.node.Memory)
-	return append(cpu, mem...)
+
+	data := append(cpu, mem...)
+	for k, v := range del.node.Meta {
+		data = append(data, []byte(k+"="+v+"\n")...)
+	}
+	return data
 }
 
 // NotifyMsg satisfies the gossip.Delegate interface
