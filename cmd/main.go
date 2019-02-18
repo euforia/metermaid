@@ -20,13 +20,14 @@ import (
 	"github.com/euforia/gossip"
 	"github.com/euforia/metermaid"
 	"github.com/euforia/metermaid/node"
+	"github.com/euforia/metermaid/pricing"
 	"github.com/euforia/metermaid/storage"
 )
 
 var (
 	bindAddr = flag.String("bind-addr", "127.0.0.1:8080", "")
 	advAddr  = flag.String("adv-addr", "", "")
-	tagList  = flag.String("tags", "", "key=value, ...")
+	metaList = flag.String("meta", "", "metadata key=value, ...")
 	joinPeer = flag.String("join", "", "")
 )
 
@@ -34,12 +35,12 @@ func init() {
 	flag.Parse()
 }
 
-func parseTags() map[string]string {
-	if *tagList == "" {
+func parseCLIMeta() map[string]string {
+	if *metaList == "" {
 		return nil
 	}
 
-	taglist := strings.Split(*tagList, ",")
+	taglist := strings.Split(*metaList, ",")
 	out := make(map[string]string)
 	for _, tagpair := range taglist {
 		kv := strings.Split(tagpair, "=")
@@ -109,8 +110,12 @@ func getAddrViaSD(name string) ([]string, error) {
 
 func makeNode() *node.Node {
 	nd := node.New()
-	nd.Meta = node.Metadata()
-	tags := parseTags()
+	// Explicitly for dev.  Refactor to autodetect
+	if nd.Platform.Name != "darwin" {
+		nd.Meta = node.Metadata()
+	}
+
+	tags := parseCLIMeta()
 	if nd.Meta != nil {
 		for k, v := range tags {
 			nd.Meta[k] = v
@@ -128,7 +133,6 @@ func main() {
 	logger.Info("node stats",
 		zap.Uint64("cpu", nd.CPUShares),
 		zap.Uint64("memory", nd.Memory),
-		zap.String("tags", *tagList),
 	)
 
 	mm, err := metermaid.New(logger)
@@ -156,8 +160,13 @@ func main() {
 
 	capi := &containerAPI{"/container", nd, contStore}
 	http.Handle("/container/", capi)
+
 	napi := &nodeAPI{"/node", gpool}
 	http.Handle("/node/", napi)
+
+	papi := &priceAPI{"/price", nd, &pricing.AWSPricer{}}
+	http.Handle("/price/", papi)
+
 	http.HandleFunc("/", handleUI)
 
 	go func(ln net.Listener) {

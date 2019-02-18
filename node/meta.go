@@ -22,7 +22,9 @@ func (nodemeta *AWSNodeMeta) Meta() map[string]string {
 		var reserve *ec2.Reservation
 		reserve, err = describeInstance(meta["Region"], meta["InstanceID"])
 		if err == nil {
-			for _, tag := range reserve.Instances[0].Tags {
+			instance := reserve.Instances[0]
+			//"InstanceLifecycle": "spot",
+			for _, tag := range instance.Tags {
 				meta[*tag.Key] = *tag.Value
 			}
 		}

@@ -16,11 +16,24 @@ type MeterMaid interface {
 	Stop() error
 }
 
-type meterMaid struct {
-	docker *DockerClient
+// ContainerProvider implements a container data provider
+type ContainerProvider interface {
+	// should return a list of known containers.
+	Containers(context.Context) ([]*types.Container, error)
+	// should return a contianer by the given id
+	Container(ctx context.Context, id string) (*types.Container, error)
+	// should clean up as needed
+	Close() error
+}
 
+type meterMaid struct {
+	// container info provider
+	cp ContainerProvider
+
+	// Containers currently running
 	containers map[string]*types.Container
 
+	// Outbound channel for container updates
 	out chan types.Container
 
 	cancel context.CancelFunc
@@ -31,18 +44,19 @@ type meterMaid struct {
 
 // New returns a new MeterMaid interface
 func New(logger *zap.Logger) (MeterMaid, error) {
-	client, err := NewDockerClient("")
+	dockerClient, err := NewDockerClient("")
 	if err != nil {
 		return nil, err
 	}
 
 	mm := &meterMaid{
-		docker:     client,
+		cp:         dockerClient,
 		containers: make(map[string]*types.Container),
 		out:        make(chan types.Container, 32),
 		done:       make(chan struct{}, 1),
 		log:        logger,
 	}
+
 	if mm.log == nil {
 		mm.log, _ = zap.NewDevelopment()
 	}
@@ -57,7 +71,7 @@ func (mm *meterMaid) run() {
 
 	mm.seedWithRunning(ctx)
 
-	events, errs := mm.docker.Events(ctx, dtypes.EventsOptions{})
+	events, errs := mm.cp.(*DockerClient).Events(ctx, dtypes.EventsOptions{})
 	mm.log.Info("listening for events")
 	for {
 		select {
@@ -97,7 +111,7 @@ func (mm *meterMaid) handleEvent(event events.Message) {
 	switch event.Action {
 	case "create":
 		var err error
-		cont, err = mm.docker.ContainerStats(context.Background(), event.Actor.ID)
+		cont, err = mm.cp.Container(context.Background(), event.Actor.ID)
 		if err == nil {
 			mm.containers[event.Actor.ID] = cont
 			mm.log.Debug("tracking", zap.String("id", event.Actor.ID), zap.String("action", "create"))
@@ -148,17 +162,13 @@ func (mm *meterMaid) handleEvent(event events.Message) {
 //  seedWithRunning gets the list of running containers and populates
 // the initial state.  This is meant to be called once on startup.
 func (mm *meterMaid) seedWithRunning(ctx context.Context) {
-	opts := dtypes.ContainerListOptions{All: true}
-	list, _ := mm.docker.ContainerList(ctx, opts)
+	list, _ := mm.cp.Containers(ctx)
 	mm.log.Info("seeding with running containers", zap.Int("count", len(list)))
 
 	for _, cont := range list {
-		scont, err := mm.docker.ContainerStats(ctx, cont.ID)
-		if err == nil {
-			mm.log.Info("tracking", zap.String("id", scont.ID), zap.String("action", "seed"))
-			mm.containers[scont.ID] = scont
-			mm.out <- *scont
-		}
+		mm.log.Info("tracking", zap.String("id", cont.ID), zap.String("action", "seed"))
+		mm.containers[cont.ID] = cont
+		mm.out <- *cont
 	}
 }
 
@@ -169,7 +179,7 @@ func (mm *meterMaid) Stop() error {
 	// Wait for shutdown
 	<-mm.done
 	// Close docker connection
-	err := mm.docker.Close()
+	err := mm.cp.Close()
 	mm.log.Info("stopped")
 	return err
 }

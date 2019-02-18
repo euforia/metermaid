@@ -1,21 +1,10 @@
 package main
 
 import (
-	"encoding/binary"
-
 	"github.com/euforia/metermaid/node"
 	"github.com/hashicorp/memberlist"
 	"go.uber.org/zap"
 )
-
-// type Proto uint8
-
-// const (
-// 	UDPProto Proto = iota + 1
-// 	TCPProto
-// 	HTTPProto
-// 	HTTPSProto
-// )
 
 type GossipDelegate struct {
 	node node.Node
@@ -30,16 +19,7 @@ func (del *GossipDelegate) MergeRemoteState(data []byte, join bool) {}
 
 // NodeMeta satisfies the gossip.Delegate interface
 func (del *GossipDelegate) NodeMeta(overhead int) []byte {
-	cpu := make([]byte, 8)
-	binary.BigEndian.PutUint64(cpu, del.node.CPUShares)
-	mem := make([]byte, 8)
-	binary.BigEndian.PutUint64(mem, del.node.Memory)
-
-	data := append(cpu, mem...)
-	for k, v := range del.node.Meta {
-		data = append(data, []byte(k+"="+v+"\n")...)
-	}
-	return data
+	return del.node.MarshalMeta()
 }
 
 // NotifyMsg satisfies the gossip.Delegate interface
@@ -59,4 +39,13 @@ func (del *GossipDelegate) NotifyLeave(node *memberlist.Node) {}
 // NotifyUpdate satisfies the memberlist.EventDelegate interface
 func (del *GossipDelegate) NotifyUpdate(node *memberlist.Node) {
 	del.log.Info("node updated")
+}
+
+func newNode(in *memberlist.Node) *node.Node {
+	n := &node.Node{
+		Name:    in.Name,
+		Address: in.Address(),
+	}
+	n.UnmarshalMeta(in.Meta)
+	return n
 }

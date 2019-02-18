@@ -12,3 +12,21 @@
   font-size: calc(10px + 2vmin);
   color: white;
 }
+
+.recharts-cartesian-axis-tick {    
+  font-size: 12px;
+  /* font-family: Roboto, sans-serif; */
+}
+
+.recharts-cartesian-axis-line,
+.recharts-cartesian-axis-tick-line {
+  stroke: #ddd;
+}
+
+.recharts-cartesian-axis-tick-value {
+ fill: #aaa;
+}
+
+.recharts-legend-item-text {
+  color: #757575;
+}

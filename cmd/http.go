@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/euforia/gossip"
 	"github.com/euforia/metermaid/node"
+	"github.com/euforia/metermaid/pricing"
 	"github.com/euforia/metermaid/storage"
 	"github.com/euforia/metermaid/ui"
 )
@@ -83,7 +85,7 @@ func (api *nodeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	nodes := make([]node.Node, len(list))
 	for i, item := range list {
-		nodes[i] = *node.NewFromMemberlistNode(item)
+		nodes[i] = *newNode(item)
 	}
 
 	b, err := json.Marshal(nodes)
@@ -93,6 +95,33 @@ func (api *nodeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write(b)
 		return
 	}
+	w.WriteHeader(400)
+	w.Write([]byte(err.Error()))
+}
+
+type priceAPI struct {
+	prefix string
+	node   *node.Node
+	pricer pricing.Pricer
+}
+
+func (api *priceAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		start = time.Unix(0, int64(api.node.BootTime))
+		end   = time.Now()
+	)
+
+	list, err := api.pricer.History(start, end, api.node.Meta)
+	if err == nil {
+		var b []byte
+		if b, err = json.Marshal(list); err == nil {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.WriteHeader(200)
+			w.Write(b)
+			return
+		}
+	}
+
 	w.WriteHeader(400)
 	w.Write([]byte(err.Error()))
 }

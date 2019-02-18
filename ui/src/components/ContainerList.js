@@ -13,7 +13,7 @@ import Paper from '@material-ui/core/Paper';
 import TimeTicker from './TimeTicker';
 import { Grid, Typography, Divider, Chip } from '@material-ui/core';
 import DonutChart from './DonutChart';
-// import { PieChart, Pie, Sector, Cell } from 'recharts';
+import BiaxialBarChart from './BiaxialBarChart';
 
 const styles = theme => ({
   root: {
@@ -82,58 +82,6 @@ function desc(a, b, orderBy) {
 function getSorting(order, orderBy) {
     return order === 'desc' ? (a, b) => desc(a, b, orderBy) : (a, b) => -desc(a, b, orderBy);
 }
-
-// const renderActiveShape = (props) => {
-//     const RADIAN = Math.PI / 180;
-//     const {
-//       cx, cy, 
-//       innerRadius, outerRadius,
-//       midAngle, startAngle, endAngle,
-//       fill, payload, percent, value,
-//     } = props;
-
-//     const sin = Math.sin(-RADIAN * midAngle);
-//     const cos = Math.cos(-RADIAN * midAngle);
-//     const sx = cx + (outerRadius + 10) * cos;
-//     const sy = cy + (outerRadius + 10) * sin;
-//     const mx = cx + (outerRadius + 30) * cos;
-//     const my = cy + (outerRadius + 30) * sin;
-//     const ex = mx + (cos >= 0 ? 1 : -1) * 22;
-//     const ey = my;
-//     const textAnchor = cos >= 0 ? 'start' : 'end';
-  
-//     return (
-//       <g>
-//         <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill}>{payload.name}</text>
-//         <Sector
-//           cx={cx}
-//           cy={cy}
-//           innerRadius={innerRadius}
-//           outerRadius={outerRadius}
-//           startAngle={startAngle}
-//           endAngle={endAngle}
-//           fill={fill}
-//         />
-//         <Sector
-//           cx={cx}
-//           cy={cy}
-//           startAngle={startAngle}
-//           endAngle={endAngle}
-//           innerRadius={outerRadius + 6}
-//           outerRadius={outerRadius + 10}
-//           fill={fill}
-//         />
-//         <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" />
-//         <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
-//         <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333" fontSize={14}>{`${value} MB`}</text>
-//         <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} dy={18} textAnchor={textAnchor} fill="#999" fontSize={12}>
-//           {`(${(percent * 100).toFixed(2)}%)`}
-//         </text>
-//       </g>
-//     );
-// };
-
-// const COLORS = ['#FFBB28','#0088FE','#00C49F','#FF8042'];
 
 const donutChartData = (usedMem, freeMem) => {
     if (freeMem>=0) 
@@ -232,6 +180,8 @@ class ContainerList extends Component {
                         <Grid item xs={4}></Grid>
                         <Grid item xs={3}>
                             <Grid container spacing={0} alignItems="center">
+                                <Grid item xs={6}><small className={classes.light}>Platform:</small></Grid>
+                                <Grid item xs={6}>{node.Platform.Name} <small>{node.Platform.Version}</small></Grid>
                                 <Grid item xs={6}><small className={classes.light}>CPU:</small></Grid>
                                 <Grid item xs={6}>{node.CPUShares} <small>shares</small></Grid>
                                 <Grid item xs={6}><small className={classes.light}>Memory:</small></Grid>
@@ -258,7 +208,11 @@ class ContainerList extends Component {
                         <DonutChart height={300} width={540} innerRadius={65} outerRadius={90} 
                             title="Memory" data={memData} unit="MB"/>
                     </Grid>
+                    <Grid item xs={12} style={{textAlign:'center', paddingBottom: 10}}>
+                        <BiaxialBarChart source={`http://${node.Address}/price/`} />
+                    </Grid>
                 </Grid>
+                <Divider/>
                 <Table className={classes.table}>
                     <TableHead>
                       <TableRow>

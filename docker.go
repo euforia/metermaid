@@ -2,13 +2,19 @@ package metermaid
 
 import (
 	"context"
+	"errors"
 	"os"
 	"time"
 
+	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 
 	"github.com/euforia/metermaid/types"
 )
+
+// ErrEventsNotSupported is returned when a provider does not support
+// events
+var ErrEventsNotSupported = errors.New("events not supported")
 
 // DockerClient ...
 type DockerClient struct {
@@ -31,9 +37,9 @@ func NewDockerClient(apiVersion string) (*DockerClient, error) {
 	return nil, err
 }
 
-// ContainerStats returns stats for a container by the given id
-func (client *DockerClient) ContainerStats(ctx context.Context, id string) (*types.Container, error) {
-	details, err := client.ContainerInspect(ctx, id)
+// Container returns stats for a container by the given id
+func (client *DockerClient) Container(ctx context.Context, id string) (*types.Container, error) {
+	details, err := client.Client.ContainerInspect(ctx, id)
 	if err == nil {
 		cont := &types.Container{
 			ID:        details.ID,
@@ -59,4 +65,25 @@ func (client *DockerClient) ContainerStats(ctx context.Context, id string) (*typ
 		return cont, nil
 	}
 	return nil, err
+}
+
+// Containers returns a list of running containers.  A complete or partial list
+// is returned depending on the error. The error returned is the last error occurred
+func (client *DockerClient) Containers(ctx context.Context) ([]*types.Container, error) {
+	opts := dtypes.ContainerListOptions{All: true}
+	list, err := client.Client.ContainerList(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	containers := make([]*types.Container, 0, len(list))
+	for i := range list {
+		cont, er := client.Container(ctx, list[i].ID)
+		if er == nil {
+			containers = append(containers, cont)
+		} else {
+			err = er
+		}
+	}
+	return containers, err
 }
