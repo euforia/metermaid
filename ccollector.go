@@ -10,14 +10,15 @@ import (
 	"github.com/euforia/metermaid/types"
 )
 
-// MeterMaid  ...
-type MeterMaid interface {
+// CCollector implements a container collector
+type CCollector interface {
+	// Returns a channel with container state updates
 	Updates() <-chan types.Container
 	Stop() error
 }
 
-// ContainerProvider implements a container data provider
-type ContainerProvider interface {
+// CProvider implements a container data provider
+type CProvider interface {
 	// should return a list of known containers.
 	Containers(context.Context) ([]*types.Container, error)
 	// should return a contianer by the given id
@@ -26,9 +27,9 @@ type ContainerProvider interface {
 	Close() error
 }
 
-type meterMaid struct {
+type cCollector struct {
 	// container info provider
-	cp ContainerProvider
+	cp CProvider
 
 	// Containers currently running
 	containers map[string]*types.Container
@@ -42,14 +43,14 @@ type meterMaid struct {
 	log *zap.Logger
 }
 
-// New returns a new MeterMaid interface
-func New(logger *zap.Logger) (MeterMaid, error) {
+// NewCCollector returns a new cCollector interface
+func NewCCollector(logger *zap.Logger) (CCollector, error) {
 	dockerClient, err := NewDockerClient("")
 	if err != nil {
 		return nil, err
 	}
 
-	mm := &meterMaid{
+	mm := &cCollector{
 		cp:         dockerClient,
 		containers: make(map[string]*types.Container),
 		out:        make(chan types.Container, 32),
@@ -65,7 +66,7 @@ func New(logger *zap.Logger) (MeterMaid, error) {
 	return mm, nil
 }
 
-func (mm *meterMaid) run() {
+func (mm *cCollector) run() {
 	ctx := context.Background()
 	ctx, mm.cancel = context.WithCancel(ctx)
 
@@ -91,11 +92,11 @@ func (mm *meterMaid) run() {
 	}
 }
 
-func (mm *meterMaid) Updates() <-chan types.Container {
+func (mm *cCollector) Updates() <-chan types.Container {
 	return mm.out
 }
 
-func (mm *meterMaid) handleEvent(event events.Message) {
+func (mm *cCollector) handleEvent(event events.Message) {
 	if event.Type != "container" {
 		return
 	}
@@ -114,10 +115,10 @@ func (mm *meterMaid) handleEvent(event events.Message) {
 		cont, err = mm.cp.Container(context.Background(), event.Actor.ID)
 		if err == nil {
 			mm.containers[event.Actor.ID] = cont
-			mm.log.Debug("tracking", zap.String("id", event.Actor.ID), zap.String("action", "create"))
+			mm.log.Debug("tracking", zap.String("id", event.Actor.ID[:12]), zap.String("action", "create"))
 		} else {
 			mm.log.Info("failed to get container details",
-				zap.String("id", event.Actor.ID),
+				zap.String("id", event.Actor.ID[:12]),
 				zap.Error(err),
 			)
 			return
@@ -134,7 +135,7 @@ func (mm *meterMaid) handleEvent(event events.Message) {
 		if cont, ok = mm.containers[event.Actor.ID]; ok {
 			cont.Stop = event.TimeNano
 			mm.log.Debug("container died",
-				zap.String("id", cont.ID),
+				zap.String("id", cont.ID[:12]),
 				zap.Duration("runtime", cont.RunTime()),
 			)
 		}
@@ -145,7 +146,7 @@ func (mm *meterMaid) handleEvent(event events.Message) {
 			// Once destroyed we stop tracking the container
 			delete(mm.containers, cont.ID)
 			mm.log.Debug("container destroyed",
-				zap.String("id", cont.ID),
+				zap.String("id", cont.ID[:12]),
 				zap.Duration("alloctime", cont.AllocatedTime()),
 			)
 		}
@@ -161,18 +162,21 @@ func (mm *meterMaid) handleEvent(event events.Message) {
 
 //  seedWithRunning gets the list of running containers and populates
 // the initial state.  This is meant to be called once on startup.
-func (mm *meterMaid) seedWithRunning(ctx context.Context) {
+func (mm *cCollector) seedWithRunning(ctx context.Context) {
 	list, _ := mm.cp.Containers(ctx)
-	mm.log.Info("seeding with running containers", zap.Int("count", len(list)))
+	mm.log.Info("seeding", zap.Int("count", len(list)))
 
 	for _, cont := range list {
-		mm.log.Info("tracking", zap.String("id", cont.ID), zap.String("action", "seed"))
+		mm.log.Info("tracking",
+			zap.String("id", cont.ID[:12]),
+			zap.String("action", "seed"),
+		)
 		mm.containers[cont.ID] = cont
 		mm.out <- *cont
 	}
 }
 
-func (mm *meterMaid) Stop() error {
+func (mm *cCollector) Stop() error {
 	mm.log.Info("stopping")
 	// Stop main loop
 	mm.cancel()

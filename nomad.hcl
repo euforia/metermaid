@@ -9,7 +9,7 @@ job "metermaid" {
 
     meta {
         # Replace with version of metermaid to use
-        VERSION = "v0.1.5"
+        VERSION = "v0.1.6"
     }
 
     group "primary" {

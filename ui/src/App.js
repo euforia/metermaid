@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import axios from 'axios';
 
 import './App.css';
-import ContainerList from './components/ContainerList';
+import Node from './components/Node';
 
 const API_HOST = process.env.REACT_APP_METERMAID_HOST || '';
 
@@ -29,7 +29,7 @@ class App extends Component {
     return (
       <div className="App">
         {nodes.map(node => {
-          return <ContainerList key={node.Name} node={node} />
+          return <Node key={node.Name} node={node} />
         })}
       </div>
     );

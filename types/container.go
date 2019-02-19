@@ -16,6 +16,9 @@ type Container struct {
 	CPUShares int64 // MHz?
 	Labels    map[string]string
 	Tags      map[string]string
+	// Units used.  This can be dollars or any other
+	// virtual unit
+	UnitsBurned float64
 }
 
 // Destroyed returns true if the container has been destroyed

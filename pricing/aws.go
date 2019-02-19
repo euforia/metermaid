@@ -1,6 +1,7 @@
 package pricing
 
 import (
+	"errors"
 	"sort"
 	"strconv"
 	"time"
@@ -10,17 +11,31 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-// AWSPricer provides aws pricing history
-type AWSPricer struct{}
+// AWSPriceProvider provides aws pricing history
+type AWSPriceProvider struct{}
 
-// NewAWSPricer returns a new instance of AWSPricer
-func NewAWSPricer() *AWSPricer {
-	return &AWSPricer{}
+// NewAWSPriceProvider returns a new instance of AWSPriceProvider
+func NewAWSPriceProvider() *AWSPriceProvider {
+	return &AWSPriceProvider{}
 }
 
 // History returns the price history given the filter. Region is a required
 // filter key.
-func (pricing *AWSPricer) History(start, end time.Time, filter map[string]string) ([]*Price, error) {
+func (pricing *AWSPriceProvider) History(start, end time.Time, filter map[string]string) ([]*Price, error) {
+	// TODO:
+	// - determine if the instance is spot, reserved or on-demand
+	//
+	return pricing.SpotHistory(start, end, filter)
+}
+
+// OnDemand returns the ondemand price for the node
+func (pricing *AWSPriceProvider) OnDemand() (*Price, error) {
+	return nil, errors.New("To be implemented")
+}
+
+// SpotHistory returns the spot price history given the filter. Region is a
+// required filter key.
+func (pricing *AWSPriceProvider) SpotHistory(start, end time.Time, filter map[string]string) ([]*Price, error) {
 	sess := session.New(&aws.Config{Region: aws.String(filter["Region"])})
 	svc := ec2.New(sess)
 

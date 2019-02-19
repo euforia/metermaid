@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_AWSPricing(t *testing.T) {
-	p := NewAWSPricer()
+func Test_AWSPriceProvider(t *testing.T) {
+	p := NewAWSPriceProvider()
 
 	now := time.Now()
 	start := time.Unix(now.Unix()-14400, 0)

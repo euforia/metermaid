@@ -135,7 +135,7 @@ func main() {
 		zap.Uint64("memory", nd.Memory),
 	)
 
-	mm, err := metermaid.New(logger)
+	cc, err := metermaid.NewCCollector(logger)
 	if err != nil {
 		logger.Fatal("failed to initialize metermaid", zap.Error(err))
 	}
@@ -143,28 +143,23 @@ func main() {
 	gsp, gpool := initGossip(logger, nd)
 
 	contStore := storage.NewInmemContainers()
+	pricer := pricing.NewAWSPriceProvider()
 
-	// Update state
-	go func() {
-		updates := mm.Updates()
-		for update := range updates {
-			contStore.Set(update)
-			logger.Info("update",
-				zap.String("id", update.ID),
-				zap.Duration("runtime", update.RunTime()),
-				zap.Duration("alloctime", update.AllocatedTime()),
-			)
-		}
-		logger.Info("update loop exiting")
-	}()
+	mm := &meterMaid{
+		node:   nd,
+		pp:     pricer,
+		cstore: contStore,
+		log:    logger,
+	}
+	go mm.run(cc.Updates())
 
-	capi := &containerAPI{"/container", nd, contStore}
+	capi := &containerAPI{"/container", contStore}
 	http.Handle("/container/", capi)
 
 	napi := &nodeAPI{"/node", gpool}
 	http.Handle("/node/", napi)
 
-	papi := &priceAPI{"/price", nd, &pricing.AWSPricer{}}
+	papi := &priceAPI{"/price", mm, logger}
 	http.Handle("/price/", papi)
 
 	http.HandleFunc("/", handleUI)
@@ -181,5 +176,5 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sigs
-	mm.Stop()
+	cc.Stop()
 }

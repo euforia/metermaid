@@ -2,16 +2,17 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"mime"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/euforia/gossip"
 	"github.com/euforia/metermaid/node"
-	"github.com/euforia/metermaid/pricing"
 	"github.com/euforia/metermaid/storage"
 	"github.com/euforia/metermaid/ui"
 )
@@ -36,7 +37,6 @@ func handleUI(w http.ResponseWriter, r *http.Request) {
 
 type containerAPI struct {
 	prefix string
-	node   *node.Node
 	store  storage.Containers
 }
 
@@ -45,12 +45,12 @@ func (api *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p == "/" {
 		list, _ := api.store.List()
 		b, _ := json.Marshal(list)
-		w.Header().Set("Node-Name", api.node.Name)
-		w.Header().Set("Node-Addr", api.node.Address)
-		w.Header().Set("Node-CPU", fmt.Sprintf("%d", api.node.CPUShares))
-		w.Header().Set("Node-Memory", fmt.Sprintf("%d", api.node.Memory))
+		// w.Header().Set("Node-Name", api.node.Name)
+		// w.Header().Set("Node-Addr", api.node.Address)
+		// w.Header().Set("Node-CPU", fmt.Sprintf("%d", api.node.CPUShares))
+		// w.Header().Set("Node-Memory", fmt.Sprintf("%d", api.node.Memory))
+		// w.Header().Set("Access-Control-Expose-Headers", "Node-Name,Node-Addr,Node-CPU,Node-Memory")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Expose-Headers", "Node-Name,Node-Addr,Node-CPU,Node-Memory")
 		w.WriteHeader(200)
 		w.Write(b)
 		return
@@ -101,17 +101,20 @@ func (api *nodeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type priceAPI struct {
 	prefix string
-	node   *node.Node
-	pricer pricing.Pricer
+	mm     *meterMaid
+	log    *zap.Logger
 }
 
 func (api *priceAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var (
-		start = time.Unix(0, int64(api.node.BootTime))
-		end   = time.Now()
-	)
+	start, end, err := parseDateRange(r.URL.Query())
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte(err.Error() + "\n" +
+			"must be RFC3339 https://tools.ietf.org/html/rfc3339\n"))
+		return
+	}
 
-	list, err := api.pricer.History(start, end, api.node.Meta)
+	list, err := api.mm.BurnHistory(start, end)
 	if err == nil {
 		var b []byte
 		if b, err = json.Marshal(list); err == nil {
@@ -124,4 +127,19 @@ func (api *priceAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(400)
 	w.Write([]byte(err.Error()))
+}
+
+func parseDateRange(params url.Values) (start, end time.Time, err error) {
+	startStr := params["start"]
+	if len(startStr) > 0 && startStr[0] != "" {
+		start, err = time.Parse(time.RFC3339, startStr[0])
+	}
+
+	endStr := params["end"]
+	if len(endStr) > 0 && endStr[0] != "" {
+		end, err = time.Parse(time.RFC3339, endStr[0])
+	} else {
+		end = time.Now()
+	}
+	return
 }
