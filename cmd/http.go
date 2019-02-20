@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/euforia/metermaid/fl"
+	"github.com/euforia/metermaid/types"
+
 	"go.uber.org/zap"
 
 	"github.com/euforia/gossip"
@@ -44,12 +47,14 @@ func (api *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := strings.TrimPrefix(r.URL.Path, api.prefix)
 	if p == "/" {
 		list, _ := api.store.List()
-		b, _ := json.Marshal(list)
-		// w.Header().Set("Node-Name", api.node.Name)
-		// w.Header().Set("Node-Addr", api.node.Address)
-		// w.Header().Set("Node-CPU", fmt.Sprintf("%d", api.node.CPUShares))
-		// w.Header().Set("Node-Memory", fmt.Sprintf("%d", api.node.Memory))
-		// w.Header().Set("Access-Control-Expose-Headers", "Node-Name,Node-Addr,Node-CPU,Node-Memory")
+		query := fl.ParseQuery(r.URL.Query())
+		out := make([]types.Container, 0, len(list))
+		for _, item := range list {
+			if item.Match(query) {
+				out = append(out, item)
+			}
+		}
+		b, _ := json.Marshal(out)
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.WriteHeader(200)
 		w.Write(b)

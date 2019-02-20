@@ -146,10 +146,12 @@ func main() {
 	pricer := pricing.NewAWSPriceProvider()
 
 	mm := &meterMaid{
-		node:   nd,
-		pp:     pricer,
-		cstore: contStore,
-		log:    logger,
+		node:      nd,
+		cpuWeight: 0.5,
+		memWeight: 0.5,
+		pp:        pricer,
+		cstore:    contStore,
+		log:       logger,
 	}
 	go mm.run(cc.Updates())
 

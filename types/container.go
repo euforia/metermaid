@@ -2,6 +2,8 @@ package types
 
 import (
 	"time"
+
+	"github.com/euforia/metermaid/fl"
 )
 
 // Container holds information about a container that is or was running
@@ -42,4 +44,94 @@ func delta(end, start int64) time.Duration {
 		return time.Duration(d)
 	}
 	return time.Duration(0)
+}
+
+func (cont *Container) Match(query fl.Query) bool {
+	for k, q := range query {
+		if !cont.MatchField(k, q...) {
+			return false
+		}
+	}
+	return true
+}
+
+// MatchField returns true if the name of the given field match the filters.  filters are
+// treated as AND's
+func (cont *Container) MatchField(name string, filters ...fl.Filter) bool {
+	switch name {
+	case "Name":
+		for _, filter := range filters {
+			if fl.MatchString(cont.Name, filter) {
+				continue
+			}
+			return false
+		}
+		return true
+	case "Create":
+		for _, filter := range filters {
+			if fl.MatchTime(time.Unix(0, cont.Create), filter) {
+				continue
+			}
+			return false
+		}
+		return true
+
+	case "Start":
+		for _, filter := range filters {
+			if fl.MatchTime(time.Unix(0, cont.Start), filter) {
+				continue
+			}
+			return false
+		}
+		return true
+	case "Stop":
+		for _, filter := range filters {
+			if fl.MatchTime(time.Unix(0, cont.Stop), filter) {
+				continue
+			}
+			return false
+		}
+		return true
+	case "Destroy":
+		for _, filter := range filters {
+			if fl.MatchTime(time.Unix(0, cont.Destroy), filter) {
+				continue
+			}
+			return false
+		}
+		return true
+	case "CPUShares":
+		for _, filter := range filters {
+			if fl.MatchInt64(cont.CPUShares, filter) {
+				continue
+			}
+			return false
+		}
+		return true
+	case "Memory":
+		for _, filter := range filters {
+			if fl.MatchInt64(cont.Memory, filter) {
+				continue
+			}
+			return false
+		}
+		return true
+
+	default:
+		for _, filter := range filters {
+			if cont.MatchLabel(name, filter) {
+				continue
+			}
+			return false
+		}
+		return true
+	}
+}
+
+func (cont *Container) MatchLabel(name string, filter fl.Filter) bool {
+	val, ok := cont.Labels[name]
+	if !ok {
+		return false
+	}
+	return fl.MatchString(val, filter)
 }

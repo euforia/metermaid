@@ -73,16 +73,9 @@ const memMB = (d) => {
 
 class ContainersTable extends Component {
     state = {
-        labels: [],
-        order: 'asc',
-        orderBy: 'Name',
+        order: 'desc',
+        orderBy: 'Price',
     };
-
-    componentDidMount() {
-        const { containers } = this.props;
-        var labels = getLabels(containers);
-        this.setState({labels: labels})
-    }
 
     handleRequestSort = (event, property) => {
         const orderBy = property;
@@ -95,24 +88,10 @@ class ContainersTable extends Component {
         this.setState({ order:order, orderBy:orderBy });
     }
 
-    // computePrice(start) {
-    //     const ph = this.props.pricing;
-    //     var total = 0;
-    //     for (var i = 0; i < ph.length; i++) {
-    //         if (ph[i].Timestamp > start) {
-    //             for (var j = i; j < ph.length; j++) {
-    //                 total += ph[j].Price;
-    //             }
-    //             return total;
-    //         }
-    //     }
-    //     return total;
-    // }
-
     render() {
         const { classes, containers } = this.props;
-        const { labels, orderBy, order } = this.state;
-
+        const { orderBy, order } = this.state;
+        const labels = getLabels(containers);
         return (
             <Table className={classes.table}>
                 <TableHead>
