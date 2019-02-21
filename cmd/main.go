@@ -19,6 +19,7 @@ import (
 	"github.com/euforia/base58"
 	"github.com/euforia/gossip"
 	"github.com/euforia/metermaid"
+	"github.com/euforia/metermaid/api"
 	"github.com/euforia/metermaid/node"
 	"github.com/euforia/metermaid/pricing"
 	"github.com/euforia/metermaid/storage"
@@ -145,27 +146,19 @@ func main() {
 	contStore := storage.NewInmemContainers()
 	pricer := pricing.NewPricer(pricing.NewAWSPriceProvider())
 
-	mm := newMeterMaid(nd, contStore, pricer, logger)
-	go mm.run(cc.Updates())
-
-	capi := &containerAPI{"/container", contStore}
-	http.Handle("/container/", capi)
+	mm := metermaid.New(&metermaid.Config{
+		Node:             nd,
+		ContainerStorage: contStore,
+		Pricer:           pricer,
+		Collector:        cc,
+		Logger:           logger,
+	})
 
 	napi := &nodeAPI{"/node", storage.NewGossipNodes(gpool)}
 	http.Handle("/node/", napi)
 
-	papi := &priceAPI{"/price", mm, logger}
-	http.Handle("/price/", papi)
-
-	http.HandleFunc("/", handleUI)
-
-	go func(ln net.Listener) {
-		logger.Info("http server", zap.String("address", *bindAddr))
-		err := http.Serve(ln, nil)
-		if err != nil {
-			logger.Info("http shutdown unclean", zap.Error(err))
-		}
-	}(gsp.ListenTCP())
+	mmAPI := api.New(mm, logger)
+	go mmAPI.Serve(gsp.ListenTCP())
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

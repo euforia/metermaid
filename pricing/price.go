@@ -7,6 +7,20 @@ import (
 	"github.com/euforia/metermaid/tsdb"
 )
 
+// PriceHistory ...
+type PriceHistory struct {
+	Total   float64
+	History tsdb.DataPoints
+}
+
+// NewPriceHistory returns a new Price computing the per interval and total
+func NewPriceHistory(data tsdb.DataPoints, per time.Duration) *PriceHistory {
+	out := &PriceHistory{History: data}
+	list := data.Per(per)
+	out.Total = list.Sum()
+	return out
+}
+
 // Provider implments an interface to return pricing information
 type Provider interface {
 	History(start, end time.Time, filter map[string]string) (tsdb.DataPoints, error)

@@ -1,16 +1,28 @@
-package main
+package metermaid
 
 import (
 	"time"
 
-	"github.com/euforia/metermaid/tsdb"
-
 	"github.com/euforia/metermaid/node"
 	"github.com/euforia/metermaid/pricing"
 	"github.com/euforia/metermaid/storage"
+	"github.com/euforia/metermaid/tsdb"
 	"github.com/euforia/metermaid/types"
 	"go.uber.org/zap"
 )
+
+type Metermaid interface {
+	BurnHistory(start, end time.Time) (*pricing.PriceHistory, error)
+	Containers() storage.Containers
+}
+
+type Config struct {
+	Node             *node.Node
+	ContainerStorage storage.Containers
+	Pricer           *pricing.Pricer
+	Logger           *zap.Logger
+	Collector        CCollector
+}
 
 type meterMaid struct {
 	node *node.Node
@@ -24,23 +36,39 @@ type meterMaid struct {
 	log    *zap.Logger
 }
 
-func newMeterMaid(nd *node.Node, cstore storage.Containers, pricer *pricing.Pricer, logger *zap.Logger) *meterMaid {
-	return &meterMaid{
-		node:      nd,
+func New(conf *Config) Metermaid {
+	mm := &meterMaid{
+		node:      conf.Node,
 		cpuWeight: 0.5,
 		memWeight: 0.5,
-		pp:        pricer,
-		cstore:    cstore,
-		log:       logger,
+		pp:        conf.Pricer,
+		cstore:    conf.ContainerStorage,
+		log:       conf.Logger,
 	}
+	go mm.run(conf.Collector.Updates())
+
+	return mm
 }
 
-func (mm *meterMaid) BurnHistory(start, end time.Time) (tsdb.DataPoints, error) {
+func (mm *meterMaid) burnHistory(start, end time.Time) (tsdb.DataPoints, error) {
 	bt := int64(mm.node.BootTime)
 	if start.UnixNano() < bt {
 		start = time.Unix(0, bt)
 	}
 	return mm.pp.History(start, end, mm.node.Meta)
+}
+
+func (mm *meterMaid) Containers() storage.Containers {
+	return mm.cstore
+}
+
+func (mm *meterMaid) BurnHistory(start, end time.Time) (*pricing.PriceHistory, error) {
+	history, err := mm.burnHistory(start, end)
+	if err == nil {
+		per, _ := time.ParseDuration("1h")
+		return pricing.NewPriceHistory(history, per), nil
+	}
+	return nil, err
 }
 
 func (mm *meterMaid) run(updates <-chan types.Container) {
@@ -93,7 +121,7 @@ func (mm *meterMaid) computePrice(update types.Container) (float64, error) {
 		end = time.Now()
 	}
 
-	prices, err := mm.BurnHistory(start, end)
+	prices, err := mm.burnHistory(start, end)
 	if err == nil {
 		cpuPrice, memPrice := computePriceOverTime(prices, end, mm.cpuWeight*rCPU, mm.memWeight*rMem)
 		return cpuPrice + memPrice, nil
