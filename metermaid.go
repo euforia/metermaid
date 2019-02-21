@@ -135,13 +135,14 @@ func (mm *meterMaid) computePrice(update types.Container) (float64, error) {
 
 // end defines how long the last price should be applied for
 func computePriceOverTime(prices tsdb.DataPoints, end time.Time, cpuWeight, memWeight float64) (cpuPrice, memPrice float64) {
+	// Prices is are per hour
+	cprices := prices.Scale(cpuWeight)
+	mprices := prices.Scale(memWeight)
+
 	var (
 		l = len(prices) - 1
 		d time.Duration
 	)
-	// Prices is are per hour
-	cprices := prices.Scale(cpuWeight)
-	mprices := prices.Scale(memWeight)
 
 	for i, p := range prices[:l] {
 		d = time.Duration(prices[i+1].Timestamp - p.Timestamp)
