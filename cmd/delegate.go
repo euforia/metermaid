@@ -38,7 +38,7 @@ func (del *GossipDelegate) NotifyLeave(node *memberlist.Node) {}
 
 // NotifyUpdate satisfies the memberlist.EventDelegate interface
 func (del *GossipDelegate) NotifyUpdate(node *memberlist.Node) {
-	del.log.Info("node updated")
+	del.log.Info("node updated", zap.String("addr", node.Address()))
 }
 
 func newNode(in *memberlist.Node) *node.Node {

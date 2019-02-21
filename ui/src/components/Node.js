@@ -4,11 +4,12 @@ import axios from 'axios';
 import PropTypes from 'prop-types';
 import { withStyles } from '@material-ui/core/styles';
 
-import { Paper, Grid, Divider, Chip } from '@material-ui/core';
+import { Paper, Grid, Divider, Chip, Typography, TextField, Button } from '@material-ui/core';
 import DonutChart from './DonutChart';
 import BiaxialBarChart from './BiaxialBarChart';
 import NodeHeader from './NodeHeader';
 import ContainersTable from './ContainersTable';
+import TimeRangePicker from './TimeRangePicker';
 
 const styles = theme => ({
   root: {
@@ -18,11 +19,43 @@ const styles = theme => ({
   light: {
     color: '#757575',
   },
-  tag: {
-      margin: theme.spacing.unit/2,
-      color: '#757575',
-  },
+//   tag: {
+//       margin: theme.spacing.unit/4,
+//       color: '#757575',
+//       height: 26,
+//       fontSize: 12,
+//   },
+  costBoard: {
+      padding: theme.spacing.unit*3,
+      margin: theme.spacing.unit,
+      textAlign: 'center',
+  }
 });
+
+
+const toHHMMSS = (msec_num, fix) => {
+    // var sec_num = parseInt(this, 10); // don't forget the second param
+    const sec_num = msec_num/1000;
+    var hours   = Math.floor(sec_num / 3600);
+    var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
+    var seconds = (sec_num - (hours * 3600) - (minutes * 60)).toFixed(fix);
+
+    var days = -1;
+    if (hours   < 10) {
+        hours   = "0"+hours;
+    } else if (hours>23) {
+        days = Math.floor(hours/24);
+        hours = hours % 24;
+    }
+
+    if (minutes < 10) {minutes = "0"+minutes;}
+    if (seconds < 10) {seconds = "0"+seconds;}
+
+    if (days>-1) {
+        return days+'d '+hours+'h '+minutes+'m '+seconds+'s';
+    }
+    return hours+'h '+minutes+'m '+seconds+'s';
+}
 
 const donutChartData = (usedMem, freeMem) => {
     if (freeMem>=0) 
@@ -38,39 +71,43 @@ const computeUsed = (data, property) => {
     return used;
 }
 
+const formatTime = (d) => {
+    var month = d.getMonth()+1;
+    if (month<10) month = "0"+month;
+    var day = d.getDate()
+    if (day<10) day = "0"+day;
+    var hour = d.getHours()
+    if (hour<10) hour = "0"+hour;
+    var mins = d.getMinutes()
+    if (mins<10) mins = "0"+mins;
+
+    return d.getFullYear()+'-'+month+'-'+day+'T'+hour+':'+mins;
+}
+
 const memMB = (d) => {
     return Math.floor(d/(1024*1024))
 }
 
-const mapToList = (m) => {
-    var out = [];
-    for (var k in m) {
-        out.push({key:k,value:m[k]});
-    }
-    return out;
-} 
-
-const computePrice = (ph, start) => {
-    var total = 0;
-    for (var i = 0; i < ph.length; i++) {
-        if (ph[i].Timestamp > start) {
-            for (var j = i; j < ph.length; j++) {
-                total += ph[j].Price;
-            }
-            return total;
-        }
-    }
-    return total;
-}
+// const mapToList = (m) => {
+//     var out = [];
+//     for (var k in m) {
+//         out.push({key:k,value:m[k]});
+//     }
+//     return out;
+// } 
 
 class Node extends Component {
     state = {
         containers: [],
         priceHistory: [],
+        currNodeCost: 0,
+        timeWindow: '',
         usedMem: 0,
         freeMem: 0,
         usedCPU: 0,
         freeCPU: 0,
+        endTime: formatTime(new Date()),
+        startTime: '',
     };
 
     componentDidMount() {
@@ -97,40 +134,60 @@ class Node extends Component {
               freeCPU = node.CPUShares-usedCPU;
           
             this.setState({
+                containers: data,
                 usedMem: usedMem,
                 freeMem: freeMem,
                 usedCPU: usedCPU,
                 freeCPU: freeCPU,
             });
             
-            this.fetchPrices(data);
+            this.fetchPrices();
         });
     }
 
-    fetchPrices = (containers) => {
+    fetchPrices = () => {
         const { node } = this.props;
-        axios.get(`http://${node.Address}/price/`)
+        var {startTime, endTime} = this.state;
+
+        var url = `http://${node.Address}/price/?end=${endTime}:00-08:00`;
+        if (startTime !=='') url += `&start=${startTime}:00-08:00`;
+        
+        axios.get(url)
         .then(resp => {
             // Pricing
-            var data = resp.data;
+            var data = resp.data.History;
             for (var i = 0; i<data.length;i++) {
                 data[i].Time = (new Date(data[i].Timestamp/1e6)).toLocaleString();
             }
-            // Set containers price
-            for (i=0;i<containers.length;i++) {
-                containers[i].Price = computePrice(data, containers[i].Start);
+
+            if (startTime === '') {
+                startTime = formatTime(new Date(data[0].Timestamp/1e6));
             }
 
-            this.setState({priceHistory: data, containers: containers});
+            this.setState({
+                priceHistory: data, 
+                currNodeCost:resp.data.Total,
+                timeWindow: toHHMMSS((data[data.length-1].Timestamp-data[0].Timestamp)/1e6,0),
+                startTime: startTime,
+                // endTime: endTime,
+            });
         });
+    }
+
+    handleStartDateChange = (event) => {
+        this.setState({startTime:event.target.value});
+    }
+    handleEndDateChange = (event) => {
+        this.setState({endTime:event.target.value});
     }
 
     render() {
         const { classes, node } = this.props;
         const { containers } = this.state;
-        const { priceHistory } = this.state;
+        const { priceHistory, currNodeCost, timeWindow } = this.state;
+        const { startTime, endTime } = this.state;
 
-        const tags = mapToList(node.Meta);
+        // const tags = mapToList(node.Meta);
         const memData = donutChartData(this.state.usedMem,this.state.freeMem);
         const cpuData = donutChartData(this.state.usedCPU,this.state.freeCPU);
 
@@ -139,24 +196,56 @@ class Node extends Component {
                 <NodeHeader node={node} />
                 <Divider/>
                 <Grid container spacing={0} alignItems="center" alignContent="center" justify="space-evenly">
-                    <Grid item xs={12} style={{textAlign:'center',paddingTop:10}}>
-                    {tags.map(item => {
-                        return (
-                            <Chip label={item.key+': '+item.value} variant="outlined"
-                                key={item.key} className={classes.tag}/>
-                        );
-                    })}
+                    <Grid item xs={12} style={{paddingTop: 20}}>
+                        <TimeRangePicker start={startTime} end={endTime}
+                            onStartChange={this.handleStartDateChange} 
+                            onEndChange={this.handleEndDateChange}
+                            onSetRange={this.fetchPrices}
+                        />
                     </Grid>
+                    {/* <Grid item xs={5} style={{textAlign: 'center'}}>
+                    </Grid>
+                    <Grid item xs={3} style={{textAlign:'right'}}>
+                        <TextField
+                            label="Start"
+                            type="datetime-local"
+                            value={startTime}
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            onChange={event => this.handleDateChange(event, 'startTime')}
+                        />
+                    </Grid>
+                    <Grid item xs={3} style={{textAlign:'right'}}>
+                        <TextField
+                            label="End"
+                            type="datetime-local"
+                            value={endTime}
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            onChange={event => this.handleDateChange(event, 'endTime')}
+                        />
+                    </Grid>
+                    <Grid item xs={1} style={{textAlign:'center'}}>
+                        <Button onClick={event => {this.fetchPrices()}}>filter</Button>
+                    </Grid> */}
                     <Grid item xs={5}>
                         <DonutChart height={300} width={540} innerRadius={65} outerRadius={90} 
                             title="CPU" data={cpuData} unit="shares"/>
+                    </Grid>
+                    <Grid item xs={2}>
+                        <Paper className={classes.costBoard}>
+                            <Typography variant="h3">{currNodeCost.toFixed(2)}</Typography>
+                            <Typography variant="body2">{timeWindow}</Typography>
+                        </Paper>
                     </Grid>
                     <Grid item xs={5}>
                         <DonutChart height={300} width={540} innerRadius={65} outerRadius={90} 
                             title="Memory" data={memData} unit="MB"/>
                     </Grid>
                     <Grid item xs={12} style={{textAlign:'center', paddingBottom: 10}}>
-                        <BiaxialBarChart data={priceHistory} />
+                        <BiaxialBarChart data={priceHistory} keyY="Value"/>
                     </Grid>
                 </Grid>
                 <ContainersTable containers={containers} pricing={priceHistory}/>

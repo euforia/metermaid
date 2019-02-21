@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/euforia/metermaid/fl"
+
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
@@ -36,6 +38,31 @@ type Node struct {
 	Meta map[string]string
 }
 
+func (n *Node) Match(query fl.Query) bool {
+	for k, filters := range query {
+		if n.MatchMeta(k, filters...) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func (n *Node) MatchMeta(name string, filters ...fl.Filter) bool {
+	val, ok := n.Meta[name]
+	if !ok {
+		return false
+	}
+
+	for _, filter := range filters {
+		if fl.MatchString(val, filter) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 func (n *Node) MarshalMeta() []byte {
 	bt := make([]byte, 8)
 	binary.BigEndian.PutUint64(bt, n.BootTime)
@@ -56,6 +83,18 @@ func (n *Node) MarshalMeta() []byte {
 	}
 
 	return data
+}
+
+// CPUPercent returns the percent ratio of the given shares relative to the
+// node
+func (n *Node) CPUPercent(shares uint64) float64 {
+	return float64(shares) / float64(n.CPUShares)
+}
+
+// MemoryPercent returns the percent ratio of the given mem relative to the
+// node
+func (n *Node) MemoryPercent(mem uint64) float64 {
+	return float64(mem) / float64(n.Memory)
 }
 
 func (n *Node) UnmarshalMeta(meta []byte) {

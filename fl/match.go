@@ -6,6 +6,73 @@ import (
 	"time"
 )
 
+func MatchFloat64(value float64, filter Filter) bool {
+	switch filter.Operator {
+	case NoOp:
+		for _, val := range filter.Values {
+			if i, err := strconv.ParseFloat(val, 64); err == nil {
+				if value == i {
+					return true
+				}
+				continue
+			}
+		}
+		return false
+	case OpNotEqual:
+		for _, val := range filter.Values {
+			if i, err := strconv.ParseFloat(val, 64); err == nil {
+				if value != i {
+					return true
+				}
+				continue
+			}
+		}
+		return false
+	case OpLess:
+		for _, val := range filter.Values {
+			if i, err := strconv.ParseFloat(val, 64); err == nil {
+				if value < i {
+					return true
+				}
+				continue
+			}
+		}
+		return false
+	case OpLessEqual:
+		for _, val := range filter.Values {
+			if i, err := strconv.ParseFloat(val, 64); err == nil {
+				if value <= i {
+					return true
+				}
+				continue
+			}
+		}
+		return false
+	case OpGreater:
+		for _, val := range filter.Values {
+			if i, err := strconv.ParseFloat(val, 64); err == nil {
+				if value > i {
+					return true
+				}
+				continue
+			}
+		}
+		return false
+	case OpGreaterEqual:
+		for _, val := range filter.Values {
+			if i, err := strconv.ParseFloat(val, 64); err == nil {
+				if value >= i {
+					return true
+				}
+				continue
+			}
+		}
+		return false
+	}
+
+	return false
+}
+
 func MatchInt64(value int64, filter Filter) bool {
 	switch filter.Operator {
 	case NoOp:

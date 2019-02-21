@@ -143,22 +143,15 @@ func main() {
 	gsp, gpool := initGossip(logger, nd)
 
 	contStore := storage.NewInmemContainers()
-	pricer := pricing.NewAWSPriceProvider()
+	pricer := pricing.NewPricer(pricing.NewAWSPriceProvider())
 
-	mm := &meterMaid{
-		node:      nd,
-		cpuWeight: 0.5,
-		memWeight: 0.5,
-		pp:        pricer,
-		cstore:    contStore,
-		log:       logger,
-	}
+	mm := newMeterMaid(nd, contStore, pricer, logger)
 	go mm.run(cc.Updates())
 
 	capi := &containerAPI{"/container", contStore}
 	http.Handle("/container/", capi)
 
-	napi := &nodeAPI{"/node", gpool}
+	napi := &nodeAPI{"/node", storage.NewGossipNodes(gpool)}
 	http.Handle("/node/", napi)
 
 	papi := &priceAPI{"/price", mm, logger}

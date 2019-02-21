@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/euforia/metermaid/tsdb"
+
 	"github.com/euforia/metermaid/fl"
 	"github.com/euforia/metermaid/types"
 
 	"go.uber.org/zap"
 
-	"github.com/euforia/gossip"
 	"github.com/euforia/metermaid/node"
 	"github.com/euforia/metermaid/storage"
 	"github.com/euforia/metermaid/ui"
@@ -46,18 +47,7 @@ type containerAPI struct {
 func (api *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := strings.TrimPrefix(r.URL.Path, api.prefix)
 	if p == "/" {
-		list, _ := api.store.List()
-		query := fl.ParseQuery(r.URL.Query())
-		out := make([]types.Container, 0, len(list))
-		for _, item := range list {
-			if item.Match(query) {
-				out = append(out, item)
-			}
-		}
-		b, _ := json.Marshal(out)
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.WriteHeader(200)
-		w.Write(b)
+		api.handleQuery(w, r)
 		return
 	}
 
@@ -80,28 +70,62 @@ func (api *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (api *containerAPI) handleQuery(w http.ResponseWriter, r *http.Request) {
+	query := fl.ParseQuery(r.URL.Query())
+	out := make([]types.Container, 0)
+	api.store.Iter(func(c types.Container) error {
+		if c.Match(query) {
+			out = append(out, c)
+		}
+		return nil
+	})
+
+	b, _ := json.Marshal(out)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(200)
+	w.Write(b)
+}
+
 type nodeAPI struct {
 	prefix string
-	pool   *gossip.Pool
+	store  storage.Nodes
 }
 
 func (api *nodeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	list := api.pool.Members()
-
-	nodes := make([]node.Node, len(list))
-	for i, item := range list {
-		nodes[i] = *newNode(item)
-	}
-
-	b, err := json.Marshal(nodes)
-	if err == nil {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.WriteHeader(200)
-		w.Write(b)
+	p := strings.TrimPrefix(r.URL.Path, api.prefix)
+	if p == "/" {
+		api.handleQuery(w, r)
 		return
 	}
-	w.WriteHeader(400)
-	w.Write([]byte(err.Error()))
+	w.WriteHeader(404)
+}
+
+func (api *nodeAPI) handleQuery(w http.ResponseWriter, r *http.Request) {
+	query := fl.ParseQuery(r.URL.Query())
+	out := make([]node.Node, 0)
+	api.store.Iter(func(c node.Node) error {
+		if c.Match(query) {
+			out = append(out, c)
+		}
+		return nil
+	})
+
+	b, _ := json.Marshal(out)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(200)
+	w.Write(b)
+}
+
+type price struct {
+	Total   float64
+	History tsdb.DataPoints
+}
+
+func newPrice(data tsdb.DataPoints, per time.Duration) *price {
+	out := &price{History: data}
+	list := data.Per(per)
+	out.Total = list.Sum()
+	return out
 }
 
 type priceAPI struct {
@@ -121,8 +145,12 @@ func (api *priceAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	list, err := api.mm.BurnHistory(start, end)
 	if err == nil {
+		// Per hour as that is what aws provides
+		d, _ := time.ParseDuration("1h")
+		out := newPrice(list, d)
+
 		var b []byte
-		if b, err = json.Marshal(list); err == nil {
+		if b, err = json.Marshal(out); err == nil {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.WriteHeader(200)
 			w.Write(b)

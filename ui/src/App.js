@@ -3,6 +3,7 @@ import axios from 'axios';
 
 import './App.css';
 import Node from './components/Node';
+import Nodes from './components/Nodes';
 
 const API_HOST = process.env.REACT_APP_METERMAID_HOST || '';
 

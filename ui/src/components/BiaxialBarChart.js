@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { ResponsiveContainer, BarChart, Bar } from 'recharts';
+import PropTypes from 'prop-types';
 import { XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { Typography } from '@material-ui/core';
 
@@ -28,7 +29,7 @@ class BiaxialBarChart extends Component {
   }
 
   render() {
-    const { data } = this.props;
+    const { data, keyY } = this.props;
     const { domainY } = this.state;
 
     return (
@@ -39,11 +40,15 @@ class BiaxialBarChart extends Component {
           <YAxis yAxisId="right" type="number" domain={domainY} orientation="right"/>
           <Tooltip />
           <Legend iconType="line" iconSize={12} content={this.renderLegend}/>
-          <Bar yAxisId="left" dataKey="Price" fill="#0088FE" minPointSize={5}/>
+          <Bar yAxisId="left" dataKey={keyY} fill="#0088FE" minPointSize={5}/>
         </BarChart>
       </ResponsiveContainer>
     );
   }
 }
+
+BiaxialBarChart.propTypes = {
+  keyY: PropTypes.string.isRequired,
+};
 
 export default (BiaxialBarChart);

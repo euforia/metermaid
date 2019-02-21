@@ -74,7 +74,7 @@ const memMB = (d) => {
 class ContainersTable extends Component {
     state = {
         order: 'desc',
-        orderBy: 'Price',
+        orderBy: 'UnitsBurned',
     };
 
     handleRequestSort = (event, property) => {
@@ -147,11 +147,11 @@ class ContainersTable extends Component {
                         {/* </TableSortLabel> */}
                     </TableCell>
                     <TableCell className={classes.tableCellNoWrap}
-                        sortDirection={orderBy === 'Price' ? order : false}>
+                        sortDirection={orderBy === 'UnitsBurned' ? order : false}>
                          <TableSortLabel
-                            active={orderBy === 'Price'}
+                            active={orderBy === 'UnitsBurned'}
                             direction={order}
-                            onClick={event => this.handleRequestSort(event, 'Price')}
+                            onClick={event => this.handleRequestSort(event, 'UnitsBurned')}
                         >
                             Price ($)
                         </TableSortLabel>
