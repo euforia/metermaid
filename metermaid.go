@@ -1,6 +1,7 @@
 package metermaid
 
 import (
+	"errors"
 	"time"
 
 	"github.com/euforia/metermaid/node"
@@ -123,8 +124,11 @@ func (mm *meterMaid) computePrice(update types.Container) (float64, error) {
 
 	prices, err := mm.burnHistory(start, end)
 	if err == nil {
-		cpuPrice, memPrice := computePriceOverTime(prices, end, mm.cpuWeight*rCPU, mm.memWeight*rMem)
-		return cpuPrice + memPrice, nil
+		if len(prices) > 0 {
+			cpuPrice, memPrice := computePriceOverTime(prices, end, mm.cpuWeight*rCPU, mm.memWeight*rMem)
+			return cpuPrice + memPrice, nil
+		}
+		err = errors.New("no price history")
 	}
 	return 0, err
 }
