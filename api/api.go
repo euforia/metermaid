@@ -11,12 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// API ...
 type API struct {
 	pricing   *priceAPI
 	container *containerAPI
 	log       *zap.Logger
 }
 
+// New returns a new API instance
 func New(mm metermaid.Metermaid, logger *zap.Logger) *API {
 	api := &API{
 		pricing:   &priceAPI{"/price", mm, logger},
@@ -31,14 +33,13 @@ func New(mm metermaid.Metermaid, logger *zap.Logger) *API {
 	return api
 }
 
+// Serve starts serving the API on the listener
 func (api *API) Serve(ln net.Listener) error {
-	// go func(ln net.Listener) {
 	api.log.Info("http server", zap.String("address", ln.Addr().String()))
 	err := http.Serve(ln, nil)
 	if err != nil {
 		api.log.Info("http shutdown unclean", zap.Error(err))
 	}
-	// }(gsp.ListenTCP())
 	return err
 }
 
@@ -58,4 +59,16 @@ func handleUI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(404)
+}
+
+func writeErrorReponse(w http.ResponseWriter, e string) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(400)
+	w.Write([]byte(e))
+}
+
+func writeResponse(w http.ResponseWriter, b []byte) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(200)
+	w.Write(b)
 }

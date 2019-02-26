@@ -3,15 +3,35 @@ package node
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"strings"
 
 	"github.com/euforia/metermaid/fl"
+	"github.com/euforia/metermaid/types"
 
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
 )
+
+// Nodes implements helper functions for groups of nodes
+type Nodes []Node
+
+// GroupBy returns a map of nodes grouped by the given Meta key
+func (nodes Nodes) GroupBy(key string) map[string][]Node {
+	grouped := make(map[string][]Node)
+	for _, n := range nodes {
+		keyV, ok := n.Meta[key]
+		if !ok {
+			continue
+		}
+		if vals, ok := grouped[keyV]; ok {
+			grouped[keyV] = append(vals, n)
+		} else {
+			grouped[keyV] = []Node{n}
+		}
+	}
+	return grouped
+}
 
 type Platform struct {
 	Name    string
@@ -35,7 +55,7 @@ type Node struct {
 	Platform Platform
 	// Arbitrary node metadata including things like instance type. These
 	// are used for grouping and aggregation queries.
-	Meta map[string]string
+	Meta types.Meta
 }
 
 func (n *Node) Match(query fl.Query) bool {
@@ -140,7 +160,6 @@ func New() *Node {
 	info, err := host.Info()
 	if err == nil {
 		// Convert to nanoseconds like everything else
-		fmt.Println(info.BootTime)
 		node.BootTime = info.BootTime * 1e9
 		node.Platform = Platform{
 			Name:    info.Platform,

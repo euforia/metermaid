@@ -7,7 +7,10 @@
             "ec2:DescribeSpotPriceHistory",
             "ec2:DescribeInstances",
             "ec2:DescribeTags",
-            "ec2:DescribeInstanceAttributes"
+            "ec2:DescribeInstanceAttributes",
+            "pricing:DescribeServices",
+            "pricing:GetAttributeValues",
+            "pricing:GetProducts"
         ],
         "Resource": "*"
       }

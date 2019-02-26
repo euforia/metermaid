@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hexablock/iputil"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/euforia/metermaid/node"
 	"github.com/euforia/metermaid/pricing"
 	"github.com/euforia/metermaid/storage"
+	"github.com/euforia/metermaid/types"
 )
 
 var (
@@ -36,28 +38,17 @@ func init() {
 	flag.Parse()
 }
 
-func parseCLIMeta() map[string]string {
+func parseCLIMeta() types.Meta {
 	if *metaList == "" {
 		return nil
 	}
-
-	taglist := strings.Split(*metaList, ",")
-	out := make(map[string]string)
-	for _, tagpair := range taglist {
-		kv := strings.Split(tagpair, "=")
-		out[kv[0]] = kv[1]
-	}
-	return out
+	return types.ParseMetaFromString(*metaList)
 }
 
 func initGossip(logger *zap.Logger, node *node.Node) (*gossip.Gossip, *gossip.Pool) {
 	gconf := gossip.DefaultConfig()
 
-	sh := sha256.Sum256([]byte(*advAddr))
-	gconf.Name = string(base58.Encode(sh[:]))
-
 	gconf.BindAddr, gconf.BindPort, _ = iputil.SplitHostPort(*bindAddr)
-
 	advHost, advPort, err := iputil.BuildAdvertiseAddr(*advAddr, *bindAddr)
 	if err != nil {
 		logger.Fatal("failed to get advertise address", zap.Error(err))
@@ -65,9 +56,11 @@ func initGossip(logger *zap.Logger, node *node.Node) (*gossip.Gossip, *gossip.Po
 	gconf.AdvertiseAddr = advHost
 	gconf.AdvertisePort, _ = iputil.PortFromString(advPort)
 
-	node.Name = gconf.Name
 	node.Address = advHost + ":" + advPort
+	sh := sha256.Sum256([]byte(node.Address))
+	node.Name = string(base58.Encode(sh[:]))
 
+	gconf.Name = node.Name
 	gsp, err := gossip.New(gconf)
 
 	pconf := gossip.DefaultLANPoolConfig(222)
@@ -134,6 +127,7 @@ func main() {
 	logger.Info("node stats",
 		zap.Uint64("cpu", nd.CPUShares),
 		zap.Uint64("memory", nd.Memory),
+		zap.Time("bootime", time.Unix(0, int64(nd.BootTime))),
 	)
 
 	cc, err := metermaid.NewCCollector(logger)
@@ -141,19 +135,22 @@ func main() {
 		logger.Fatal("failed to initialize metermaid", zap.Error(err))
 	}
 
-	gsp, gpool := initGossip(logger, nd)
-
-	contStore := storage.NewInmemContainers()
-	pricer := pricing.NewPricer(pricing.NewAWSPriceProvider())
-
-	mm := metermaid.New(&metermaid.Config{
+	conf := &metermaid.Config{
 		Node:             nd,
-		ContainerStorage: contStore,
-		Pricer:           pricer,
+		ContainerStorage: storage.NewInmemContainers(),
 		Collector:        cc,
 		Logger:           logger,
-	})
+	}
 
+	if _, ok := nd.Meta[node.SpotTag]; ok {
+		conf.Pricer = pricing.NewAWSSpotPricer()
+	} else {
+		conf.Pricer = pricing.NewAWSOnDemandPricer()
+	}
+
+	mm := metermaid.New(conf)
+
+	gsp, gpool := initGossip(logger, nd)
 	napi := &nodeAPI{"/node", storage.NewGossipNodes(gpool)}
 	http.Handle("/node/", napi)
 

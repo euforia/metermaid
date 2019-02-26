@@ -107,7 +107,10 @@ func (mm *cCollector) handleEvent(event events.Message) {
 		return
 	}
 
-	var cont *types.Container
+	var (
+		cont *types.Container
+		ok   bool
+	)
 
 	switch event.Action {
 	case "create":
@@ -125,13 +128,11 @@ func (mm *cCollector) handleEvent(event events.Message) {
 		}
 	// case "attach":
 	case "start":
-		var ok bool
 		if cont, ok = mm.containers[event.Actor.ID]; ok {
 			cont.Start = event.TimeNano
 		}
 	// case "resize":
 	case "die":
-		var ok bool
 		if cont, ok = mm.containers[event.Actor.ID]; ok {
 			cont.Stop = event.TimeNano
 			mm.log.Debug("container died",
@@ -140,7 +141,6 @@ func (mm *cCollector) handleEvent(event events.Message) {
 			)
 		}
 	case "destroy":
-		var ok bool
 		if cont, ok = mm.containers[event.Actor.ID]; ok {
 			cont.Destroy = event.TimeNano
 			// Once destroyed we stop tracking the container

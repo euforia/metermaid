@@ -16,28 +16,28 @@ type priceAPI struct {
 	log    *zap.Logger
 }
 
+// ServeHTTP serves the pricing api.  All information is from the perspective of
+// the node
 func (api *priceAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
 	start, end, err := parseDateRange(r.URL.Query())
 	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte(err.Error() + "\n" +
-			"must be RFC3339 https://tools.ietf.org/html/rfc3339\n"))
+		writeErrorReponse(w, err.Error()+"\n"+
+			"must be RFC3339 https://tools.ietf.org/html/rfc3339\n")
 		return
 	}
 
-	priceHistory, err := api.mm.BurnHistory(start, end)
+	priceHistory, err := api.mm.PriceReport(start, end)
 	if err == nil {
 		var b []byte
 		if b, err = json.Marshal(priceHistory); err == nil {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.WriteHeader(200)
-			w.Write(b)
+			writeResponse(w, b)
 			return
 		}
 	}
 
-	w.WriteHeader(400)
-	w.Write([]byte(err.Error()))
+	writeErrorReponse(w, err.Error())
 }
 
 func parseDateRange(params url.Values) (start, end time.Time, err error) {

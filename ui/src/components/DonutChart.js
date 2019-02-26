@@ -80,6 +80,7 @@ class DonutChart extends Component{
         const {innerRadius, outerRadius} = this.props;
         const {classes, data} = this.props;
         const {activeIndex} = this.state;
+        const colors = this.props.colors ? this.props.colors : COLORS;
 
         return (
          <PieChart height={height} width={width} className={classes.chartContainer}>
@@ -88,8 +89,8 @@ class DonutChart extends Component{
                 activeIndex={activeIndex}
                 activeShape={this.renderActiveShape} 
                 data={data} 
-                cx={300} 
-                cy={150}
+                cx={(width/2)} 
+                cy={(height/2)}
                 innerRadius={innerRadius}
                 outerRadius={outerRadius} 
                 // fill="#8884d8"
@@ -97,7 +98,7 @@ class DonutChart extends Component{
             >
             {
                 data.map((entry, index) =>
-                    <Cell key={index} fill={entry.color ? entry.color : COLORS[index % COLORS.length]} />
+                    <Cell key={index} fill={entry.color ? entry.color : colors[index % colors.length]} />
                 )
             }
             </Pie>

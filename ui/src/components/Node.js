@@ -4,7 +4,7 @@ import axios from 'axios';
 import PropTypes from 'prop-types';
 import { withStyles } from '@material-ui/core/styles';
 
-import { Paper, Grid, Divider, Chip, Typography, TextField, Button } from '@material-ui/core';
+import { Paper, Grid, Divider, Typography } from '@material-ui/core';
 import DonutChart from './DonutChart';
 import BiaxialBarChart from './BiaxialBarChart';
 import NodeHeader from './NodeHeader';
@@ -26,10 +26,17 @@ const styles = theme => ({
 //       fontSize: 12,
 //   },
   costBoard: {
-      padding: theme.spacing.unit*3,
+    //   padding: theme.spacing.unit*3,
       margin: theme.spacing.unit,
       textAlign: 'center',
-  }
+  },
+  costBoardHeader: {
+      padding:theme.spacing.unit*3,
+  },
+  costBoardBody: {
+    padding:theme.spacing.unit*2,
+    color: '#757575'
+}
 });
 
 
@@ -99,8 +106,13 @@ const memMB = (d) => {
 class Node extends Component {
     state = {
         containers: [],
-        priceHistory: [],
-        currNodeCost: 0,
+        priceHistory: {
+            Total:0,
+            Min:0,
+            Max:0,
+            Average:0,
+            History: [],
+        },
         timeWindow: '',
         usedMem: 0,
         freeMem: 0,
@@ -155,19 +167,19 @@ class Node extends Component {
         axios.get(url)
         .then(resp => {
             // Pricing
-            var data = resp.data.History;
-            for (var i = 0; i<data.length;i++) {
-                data[i].Time = (new Date(data[i].Timestamp/1e6)).toLocaleString();
+            var history = resp.data.History;
+            for (var i = 0; i<history.length;i++) {
+                history[i].Time = (new Date(history[i].Timestamp/1e6)).toLocaleString();
             }
 
             if (startTime === '') {
-                startTime = formatTime(new Date(data[0].Timestamp/1e6));
+                startTime = formatTime(new Date(history[0].Timestamp/1e6));
             }
 
             this.setState({
-                priceHistory: data, 
-                currNodeCost:resp.data.Total,
-                timeWindow: toHHMMSS((data[data.length-1].Timestamp-data[0].Timestamp)/1e6,0),
+                priceHistory: resp.data, 
+                // currNodeCost:resp.data.Total,
+                timeWindow: toHHMMSS((history[history.length-1].Timestamp-history[0].Timestamp)/1e6,0),
                 startTime: startTime,
                 // endTime: endTime,
             });
@@ -184,7 +196,7 @@ class Node extends Component {
     render() {
         const { classes, node } = this.props;
         const { containers } = this.state;
-        const { priceHistory, currNodeCost, timeWindow } = this.state;
+        const { priceHistory, timeWindow } = this.state;
         const { startTime, endTime } = this.state;
 
         // const tags = mapToList(node.Meta);
@@ -203,41 +215,22 @@ class Node extends Component {
                             onSetRange={this.fetchPrices}
                         />
                     </Grid>
-                    {/* <Grid item xs={5} style={{textAlign: 'center'}}>
-                    </Grid>
-                    <Grid item xs={3} style={{textAlign:'right'}}>
-                        <TextField
-                            label="Start"
-                            type="datetime-local"
-                            value={startTime}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
-                            onChange={event => this.handleDateChange(event, 'startTime')}
-                        />
-                    </Grid>
-                    <Grid item xs={3} style={{textAlign:'right'}}>
-                        <TextField
-                            label="End"
-                            type="datetime-local"
-                            value={endTime}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
-                            onChange={event => this.handleDateChange(event, 'endTime')}
-                        />
-                    </Grid>
-                    <Grid item xs={1} style={{textAlign:'center'}}>
-                        <Button onClick={event => {this.fetchPrices()}}>filter</Button>
-                    </Grid> */}
                     <Grid item xs={5}>
                         <DonutChart height={300} width={540} innerRadius={65} outerRadius={90} 
                             title="CPU" data={cpuData} unit="shares"/>
                     </Grid>
                     <Grid item xs={2}>
                         <Paper className={classes.costBoard}>
-                            <Typography variant="h3">{currNodeCost.toFixed(2)}</Typography>
-                            <Typography variant="body2">{timeWindow}</Typography>
+                            <div className={classes.costBoardHeader}>
+                                <Typography variant="h3">{priceHistory.Total.toFixed(2)}</Typography>
+                                <Typography variant="caption">{timeWindow}</Typography>
+                            </div>
+                            <Divider/>
+                            <div className={classes.costBoardBody}>
+                                <Typography style={{color:'inherit'}}>Min: {priceHistory.Min.toFixed(5)}</Typography>
+                                <Typography style={{color:'inherit'}}>Avg: {priceHistory.Average.toFixed(5)}</Typography>
+                                <Typography style={{color:'inherit'}}>Max: {priceHistory.Max.toFixed(5)}</Typography>
+                            </div>
                         </Paper>
                     </Grid>
                     <Grid item xs={5}>
@@ -245,10 +238,10 @@ class Node extends Component {
                             title="Memory" data={memData} unit="MB"/>
                     </Grid>
                     <Grid item xs={12} style={{textAlign:'center', paddingBottom: 10}}>
-                        <BiaxialBarChart data={priceHistory} keyY="Value"/>
+                        <BiaxialBarChart data={priceHistory.History} keyY="Value"/>
                     </Grid>
                 </Grid>
-                <ContainersTable containers={containers} pricing={priceHistory}/>
+                <ContainersTable containers={containers} pricing={priceHistory.History}/>
             </Paper>
         );
     }

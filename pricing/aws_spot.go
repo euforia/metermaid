@@ -1,7 +1,6 @@
 package pricing
 
 import (
-	"errors"
 	"strconv"
 	"time"
 
@@ -11,31 +10,28 @@ import (
 	"github.com/euforia/metermaid/tsdb"
 )
 
-// AWSPriceProvider provides aws pricing history
-type AWSPriceProvider struct{}
+// AWSSpotPricer provides aws pricing history
+type AWSSpotPricer struct{}
 
-// NewAWSPriceProvider returns a new instance of AWSPriceProvider
-func NewAWSPriceProvider() *AWSPriceProvider {
-	return &AWSPriceProvider{}
+// NewAWSSpotPricer returns a new instance of AWSSpotPricer
+func NewAWSSpotPricer() *AWSSpotPricer {
+	return &AWSSpotPricer{}
+}
+
+// Name returns the name of the provider
+func (pp *AWSSpotPricer) Name() string {
+	return "aws-spot"
 }
 
 // History returns the price history given the filter. Region is a required
 // filter key.
-func (pricing *AWSPriceProvider) History(start, end time.Time, filter map[string]string) (tsdb.DataPoints, error) {
-	// TODO:
-	// - determine if the instance is spot, reserved or on-demand
-	//
-	return pricing.SpotHistory(start, end, filter)
-}
-
-// OnDemand returns the ondemand price for the node
-func (pricing *AWSPriceProvider) OnDemand() (tsdb.DataPoint, error) {
-	return tsdb.DataPoint{}, errors.New("To be implemented")
+func (pp *AWSSpotPricer) History(start, end time.Time, filter map[string]string) (tsdb.DataPoints, error) {
+	return pp.SpotHistory(start, end, filter)
 }
 
 // SpotHistory returns the spot price history given the filter. Region is a
 // required filter key.
-func (pricing *AWSPriceProvider) SpotHistory(start, end time.Time, filter map[string]string) (tsdb.DataPoints, error) {
+func (pp *AWSSpotPricer) SpotHistory(start, end time.Time, filter map[string]string) (tsdb.DataPoints, error) {
 	sess := session.New(&aws.Config{Region: aws.String(filter["Region"])})
 	svc := ec2.New(sess)
 
@@ -72,15 +68,15 @@ func (pricing *AWSPriceProvider) SpotHistory(start, end time.Time, filter map[st
 			continue
 		}
 
-		prices = prices.Add(tsdb.DataPoint{
+		prices = prices.Insert(tsdb.DataPoint{
 			Value:     pf,
 			Timestamp: uint64(sp.Timestamp.UnixNano()),
-			Meta: map[string]string{
-				"Region":             filter["Region"],
-				"AvailabilityZone":   *sp.AvailabilityZone,
-				"ProductDescription": *sp.ProductDescription,
-				"InstanceType":       *sp.InstanceType,
-			},
+			// Meta: map[string]string{
+			// 	"Region":             filter["Region"],
+			// 	"AvailabilityZone":   *sp.AvailabilityZone,
+			// 	"ProductDescription": *sp.ProductDescription,
+			// 	"InstanceType":       *sp.InstanceType,
+			// },
 		})
 		// prices = append(prices, price)
 	}

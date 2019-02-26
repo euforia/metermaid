@@ -24,8 +24,7 @@ var testOps = []testOp{
 	testOp{in: "gt:foo", eField: "foo", eOp: OpGreater},
 	testOp{in: "lt:foo", eField: "foo", eOp: OpLess},
 	testOp{in: "le:foo", eField: "foo", eOp: OpLessEqual},
-	testOp{in: "!foo", eField: "foo", eOp: OpNotEqual},
-	testOp{in: "!foo", eField: "foo", eOp: OpNotEqual},
+	testOp{in: "ne:foo", eField: "foo", eOp: OpNotEqual},
 }
 
 func Test_parseDelimited(t *testing.T) {

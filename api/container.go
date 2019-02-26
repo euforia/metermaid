@@ -28,13 +28,11 @@ func (api *containerAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		switch err {
 		case nil:
 			b, _ := json.Marshal(resp)
-			w.WriteHeader(200)
-			w.Write(b)
+			writeResponse(w, b)
 		case storage.ErrNotFound:
 			w.WriteHeader(404)
 		default:
-			w.WriteHeader(400)
-			w.Write([]byte(err.Error()))
+			writeErrorReponse(w, err.Error())
 		}
 	default:
 		w.WriteHeader(405)
@@ -52,7 +50,5 @@ func (api *containerAPI) handleQuery(w http.ResponseWriter, r *http.Request) {
 	})
 
 	b, _ := json.Marshal(out)
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.WriteHeader(200)
-	w.Write(b)
+	writeResponse(w, b)
 }

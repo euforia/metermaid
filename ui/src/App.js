@@ -29,9 +29,12 @@ class App extends Component {
     const {nodes} = this.state;
     return (
       <div className="App">
+        <Nodes data={nodes}/>
+        
         {nodes.map(node => {
           return <Node key={node.Name} node={node} />
         })}
+        
       </div>
     );
   }

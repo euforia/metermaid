@@ -5,6 +5,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/euforia/metermaid/types"
+)
+
+const (
+	// SpotTag is the name of the tag on an ec2 instance to determine
+	// if the instance is a spot instance
+	SpotTag = "aws:ec2spot:fleet-request-id"
 )
 
 // AWSNodeMeta ...
@@ -16,7 +23,7 @@ func NewAWSNodeMeta() *AWSNodeMeta {
 }
 
 // Meta returns metadata for the node
-func (nodemeta *AWSNodeMeta) Meta() map[string]string {
+func (nodemeta *AWSNodeMeta) Meta() types.Meta {
 	meta, err := getInstanceMeta()
 	if err == nil {
 		var reserve *ec2.Reservation

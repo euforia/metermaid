@@ -19,7 +19,8 @@ type Container struct {
 	Labels    map[string]string
 	Tags      map[string]string
 	// Units used.  This can be dollars or any other
-	// virtual unit
+	// virtual unit. This represents the total cost between
+	// create and destroy
 	UnitsBurned float64
 }
 
@@ -46,6 +47,7 @@ func delta(end, start int64) time.Duration {
 	return time.Duration(0)
 }
 
+// Match returns true if the given query matches the container
 func (cont *Container) Match(query fl.Query) bool {
 	for k, q := range query {
 		if !cont.MatchField(k, q...) {
