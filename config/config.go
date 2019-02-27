@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/euforia/hcl"
+	"github.com/hashicorp/hcl"
 )
 
 type Config struct {
