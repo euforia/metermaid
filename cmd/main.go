@@ -22,7 +22,6 @@ import (
 	"github.com/euforia/metermaid"
 	"github.com/euforia/metermaid/api"
 	"github.com/euforia/metermaid/node"
-	"github.com/euforia/metermaid/pricing"
 	"github.com/euforia/metermaid/storage"
 	"github.com/euforia/metermaid/types"
 )
@@ -36,13 +35,6 @@ var (
 
 func init() {
 	flag.Parse()
-}
-
-func parseCLIMeta() types.Meta {
-	if *metaList == "" {
-		return nil
-	}
-	return types.ParseMetaFromString(*metaList)
 }
 
 func initGossip(logger *zap.Logger, node *node.Node) (*gossip.Gossip, *gossip.Pool) {
@@ -104,20 +96,15 @@ func getAddrViaSD(name string) ([]string, error) {
 
 func makeNode() *node.Node {
 	nd := node.New()
-	// Explicitly for dev.  Refactor to autodetect
-	if nd.Platform.Name != "darwin" {
-		nd.Meta = node.Metadata()
-	}
-
-	tags := parseCLIMeta()
-	if nd.Meta != nil {
-		for k, v := range tags {
+	if *metaList != "" {
+		meta := types.ParseMetaFromString(*metaList)
+		if nd.Meta == nil {
+			nd.Meta = make(types.Meta)
+		}
+		for k, v := range meta {
 			nd.Meta[k] = v
 		}
-	} else {
-		nd.Meta = tags
 	}
-
 	return nd
 }
 
@@ -140,14 +127,8 @@ func main() {
 		ContainerStorage: storage.NewInmemContainers(),
 		Collector:        cc,
 		Logger:           logger,
+		// Pricer:           pricing.NewProvider(nd),
 	}
-
-	if _, ok := nd.Meta[node.SpotTag]; ok {
-		conf.Pricer = pricing.NewAWSSpotPricer()
-	} else {
-		conf.Pricer = pricing.NewAWSOnDemandPricer()
-	}
-
 	mm := metermaid.New(conf)
 
 	gsp, gpool := initGossip(logger, nd)

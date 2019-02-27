@@ -25,6 +25,10 @@ func (c DataPoints) SumPerHour() (total float64) {
 		l = len(c) - 1
 		d time.Duration
 	)
+	if l < 0 {
+		return
+	}
+
 	for i, p := range c[:l] {
 		d = time.Duration(c[i+1].Timestamp - p.Timestamp)
 		// Add cost per hour times the number of hours

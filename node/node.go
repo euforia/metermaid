@@ -33,6 +33,12 @@ func (nodes Nodes) GroupBy(key string) map[string][]Node {
 	return grouped
 }
 
+const (
+	// PlatformAmazon is an amazon ec2 instance
+	PlatformAmazon = "amazon"
+)
+
+// Platform holds the nodes platform information
 type Platform struct {
 	Name    string
 	Family  string
@@ -140,6 +146,13 @@ func (n *Node) UnmarshalMeta(meta []byte) {
 	}
 }
 
+// IsAWSSpot returns true if this nodes metadata contains the appropriate
+// spot tag key
+func (n *Node) IsAWSSpot() bool {
+	_, ok := n.Meta[SpotTag]
+	return ok
+}
+
 // New computes the total cpu shares and memory of the system
 // and returns a new Node instance
 func New() *Node {
@@ -160,11 +173,16 @@ func New() *Node {
 	info, err := host.Info()
 	if err == nil {
 		// Convert to nanoseconds like everything else
+		node.Name = info.HostID
 		node.BootTime = info.BootTime * 1e9
 		node.Platform = Platform{
 			Name:    info.Platform,
 			Family:  info.PlatformFamily,
 			Version: info.PlatformVersion,
+		}
+
+		if mp := NewMetaProvider(node.Platform.Name); mp != nil {
+			node.Meta = mp.Meta()
 		}
 	}
 

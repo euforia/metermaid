@@ -17,12 +17,13 @@ type Metermaid interface {
 	Containers() storage.Containers
 }
 
+// Config is the config used to initialize a Metermaid instance
 type Config struct {
 	Node             *node.Node
 	ContainerStorage storage.Containers
-	Pricer           pricing.Provider
-	Collector        CCollector
-	Logger           *zap.Logger
+	// Pricer           pricing.Provider
+	Collector CCollector
+	Logger    *zap.Logger
 }
 
 type meterMaid struct {
@@ -43,7 +44,7 @@ func New(conf *Config) Metermaid {
 		node:      conf.Node,
 		cpuWeight: 0.5,
 		memWeight: 0.5,
-		pp:        pricing.NewPricer(conf.Pricer, *conf.Node, conf.Logger),
+		pp:        pricing.NewPricer(*conf.Node, conf.Logger),
 		cstore:    conf.ContainerStorage,
 		log:       conf.Logger,
 	}

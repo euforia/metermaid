@@ -14,6 +14,19 @@ const (
 	SpotTag = "aws:ec2spot:fleet-request-id"
 )
 
+// MetaProvider implements a node metadata provider
+type MetaProvider interface {
+	Meta() types.Meta
+}
+
+func NewMetaProvider(platform string) MetaProvider {
+	switch platform {
+	case PlatformAmazon:
+		return &AWSNodeMeta{}
+	}
+	return nil
+}
+
 // AWSNodeMeta ...
 type AWSNodeMeta struct{}
 
@@ -68,10 +81,4 @@ func describeInstance(region, instanceID string) (*ec2.Reservation, error) {
 		}
 	}
 	return nil, err
-}
-
-// Metadata returns metadata for the node.  In the future this will be dynamic
-func Metadata() map[string]string {
-	nm := &AWSNodeMeta{}
-	return nm.Meta()
 }

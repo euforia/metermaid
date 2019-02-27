@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/euforia/metermaid/node"
+	"github.com/euforia/metermaid/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,12 +41,16 @@ func Test_Pricer(t *testing.T) {
 	start, _ := time.Parse("2006-01-02T15:04", "2019-02-19T00:00")
 	end, _ := time.Parse("2006-01-02T15:04", "2019-02-21T00:00")
 	pricer := NewPricer(
-		NewAWSSpotPricer(),
-		node.Node{Meta: map[string]string{
-			"Region":           "us-west-2",
-			"InstanceType":     "r4.xlarge",
-			"AvailabilityZone": "us-west-2b",
-		}},
+		// NewAWSSpotPricer(),
+		node.Node{
+			Platform: node.Platform{Name: "amazon"},
+			Meta: types.Meta{
+				"Region":           "us-west-2",
+				"InstanceType":     "r4.xlarge",
+				"AvailabilityZone": "us-west-2b",
+				node.SpotTag:       "foo",
+			},
+		},
 		zap.NewExample(),
 	)
 
