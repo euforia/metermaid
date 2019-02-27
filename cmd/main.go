@@ -18,12 +18,9 @@ import (
 )
 
 var (
-	// bindAddr = flag.String("bind-addr", "127.0.0.1:8080", "")
-	// advAddr  = flag.String("adv-addr", "", "")
-	nodeMeta   = flag.String("node.meta", "", "node metadata key=value, ...")
+	nodeMeta   = flag.String("node.meta", "", "additional node metadata key=value, ...")
 	metricMeta = flag.String("metric.meta", "", "default metadata to add to all collections key=value, ...")
-	// joinPeer = flag.String("join", "", "")
-	confFile = flag.String("conf", "", "path to config file")
+	confFile   = flag.String("conf", "", "path to config file")
 )
 
 func init() {

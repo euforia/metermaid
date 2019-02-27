@@ -109,7 +109,7 @@ func (pr *Pricer) history(start, end time.Time) (tsdb.DataPoints, error) {
 	}
 	// 5 min since last fetch
 	if e <= pr.lastFetched+pr.refetchMin {
-		prices := pr.cache.Get(s, e)
+		prices := pr.cache.Get(s, e).Clone()
 		pr.mu.RUnlock()
 		return prices, nil
 	}
@@ -126,7 +126,10 @@ func (pr *Pricer) fetchHistory(reqStart, start, end time.Time) (tsdb.DataPoints,
 	if err == nil {
 		pr.log.Debug("fetched price history",
 			zap.Time("start", start), zap.Time("end", end),
-			zap.Int("count", len(prices)))
+			zap.Int("count", len(prices)),
+			zap.Float64("min", prices.Min()),
+			zap.Float64("max", prices.Max()),
+		)
 
 		pr.mu.Lock()
 		prices = pr.cache.Insert(prices...)
@@ -137,7 +140,7 @@ func (pr *Pricer) fetchHistory(reqStart, start, end time.Time) (tsdb.DataPoints,
 		// 	zap.Int("count", len(pr.cache)))
 
 		pr.lastFetched = uint64(time.Now().UnixNano())
-		prices = pr.cache.Get(uint64(reqStart.UnixNano()), uint64(end.UnixNano()))
+		prices = pr.cache.Get(uint64(reqStart.UnixNano()), uint64(end.UnixNano())).Clone()
 		pr.mu.Unlock()
 	}
 	// pr.log.Debug("price history result", zap.Int("size", len(prices)))

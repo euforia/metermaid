@@ -51,7 +51,7 @@ type Node struct {
 	Name string
 	// Accessible address
 	Address string
-	// Total cpu shares in MHz
+	// Total cpu shares in Hz
 	CPUShares uint64
 	// Total memory in bytes
 	Memory uint64
@@ -160,7 +160,8 @@ func New() *Node {
 	// Get total for all cpus and cores
 	var mhz float64
 	for _, c := range cpus {
-		mhz += c.Mhz * float64(c.Cores)
+		// Convert to Hz
+		mhz += c.Mhz * 1024 * 1024 * float64(c.Cores)
 	}
 
 	node := &Node{
