@@ -20,11 +20,17 @@ func (nc *NodeCollector) Name() string {
 
 func (nc *NodeCollector) Init(conf map[string]interface{}) error {
 	if tags, ok := conf["meta"]; ok {
-		if taglist, ok := tags.([]string); ok {
-			nc.meta = taglist
-		} else {
-			return errors.New("tags must be a list of strings")
+		out, err := ifaceSliceToStringSlice(tags)
+		if err != nil {
+			return err
 		}
+		nc.meta = out
+		// if taglist, ok := tags.([]string); ok {
+		// 	nc.meta = taglist
+		// } else {
+		// 	return errors.New("tags must be a list of strings")
+		// }
+
 	}
 
 	if n, ok := conf["node"]; ok {

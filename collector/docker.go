@@ -2,13 +2,13 @@ package collector
 
 import (
 	"context"
-	"errors"
 	"os"
 	"time"
 
 	dtypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/euforia/metermaid/types"
+	"github.com/pkg/errors"
 )
 
 const dockerAPIVersion = "1.37"
@@ -19,10 +19,12 @@ type DockerCollector struct {
 	meta []string
 }
 
+// Name satisfies the Collector interface
 func (dc *DockerCollector) Name() string {
 	return "docker"
 }
 
+// Init satisfies the Collector interface
 func (dc *DockerCollector) Init(conf map[string]interface{}) error {
 	if conf == nil {
 		return nil
@@ -39,11 +41,11 @@ func (dc *DockerCollector) Init(conf map[string]interface{}) error {
 	}
 
 	if tags, ok := conf["labels"]; ok {
-		if taglist, ok := tags.([]string); ok {
-			dc.meta = taglist
-		} else {
-			return errors.New("tags must be a list of strings")
+		out, err := ifaceSliceToStringSlice(tags)
+		if err != nil {
+			return errors.Wrap(err, "labels")
 		}
+		dc.meta = out
 	}
 
 	cli, err := client.NewEnvClient()
@@ -53,6 +55,7 @@ func (dc *DockerCollector) Init(conf map[string]interface{}) error {
 	return err
 }
 
+// Collect satisfies the Collector interface
 func (dc *DockerCollector) Collect(ctx context.Context) ([]RunStats, error) {
 	opts := dtypes.ContainerListOptions{All: true}
 	list, err := dc.client.ContainerList(ctx, opts)
@@ -83,4 +86,25 @@ func (dc *DockerCollector) Collect(ctx context.Context) ([]RunStats, error) {
 		rts[i] = rt
 	}
 	return rts, nil
+}
+
+func ifaceSliceToStringSlice(tags interface{}) ([]string, error) {
+	switch typ := tags.(type) {
+	case []string:
+		return typ, nil
+
+	case []interface{}:
+		out := make([]string, 0, len(typ))
+		for _, k := range typ {
+			if l, ok := k.(string); ok {
+				out = append(out, l)
+				continue
+			}
+			return nil, errors.New("must be a list of strings")
+		}
+		return out, nil
+
+	}
+
+	return nil, errors.New("must be a list of strings")
 }

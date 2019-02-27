@@ -1,103 +1,39 @@
 package main
 
 import (
-	"context"
-	"crypto/sha256"
 	"flag"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/hexablock/iputil"
-
 	"go.uber.org/zap"
 
-	"github.com/euforia/base58"
-	"github.com/euforia/gossip"
 	"github.com/euforia/metermaid"
-	"github.com/euforia/metermaid/api"
+	"github.com/euforia/metermaid/collector"
+	"github.com/euforia/metermaid/config"
 	"github.com/euforia/metermaid/node"
-	"github.com/euforia/metermaid/storage"
 	"github.com/euforia/metermaid/types"
 )
 
 var (
-	bindAddr = flag.String("bind-addr", "127.0.0.1:8080", "")
-	advAddr  = flag.String("adv-addr", "", "")
-	metaList = flag.String("meta", "", "metadata key=value, ...")
-	joinPeer = flag.String("join", "", "")
+	// bindAddr = flag.String("bind-addr", "127.0.0.1:8080", "")
+	// advAddr  = flag.String("adv-addr", "", "")
+	nodeMeta   = flag.String("node.meta", "", "node metadata key=value, ...")
+	metricMeta = flag.String("metric.meta", "", "default metadata to add to all collections key=value, ...")
+	// joinPeer = flag.String("join", "", "")
+	confFile = flag.String("conf", "", "path to config file")
 )
 
 func init() {
 	flag.Parse()
 }
 
-func initGossip(logger *zap.Logger, node *node.Node) (*gossip.Gossip, *gossip.Pool) {
-	gconf := gossip.DefaultConfig()
-
-	gconf.BindAddr, gconf.BindPort, _ = iputil.SplitHostPort(*bindAddr)
-	advHost, advPort, err := iputil.BuildAdvertiseAddr(*advAddr, *bindAddr)
-	if err != nil {
-		logger.Fatal("failed to get advertise address", zap.Error(err))
-	}
-	gconf.AdvertiseAddr = advHost
-	gconf.AdvertisePort, _ = iputil.PortFromString(advPort)
-
-	node.Address = advHost + ":" + advPort
-	sh := sha256.Sum256([]byte(node.Address))
-	node.Name = string(base58.Encode(sh[:]))
-
-	gconf.Name = node.Name
-	gsp, err := gossip.New(gconf)
-
-	pconf := gossip.DefaultLANPoolConfig(222)
-	gspDel := &GossipDelegate{log: logger, node: *node}
-	pconf.Delegate = gspDel
-	pconf.Memberlist.Events = gspDel
-	gpool := gsp.RegisterPool(pconf)
-	if err = gsp.Start(); err != nil {
-		logger.Fatal("failed to start gossip", zap.Error(err))
-	}
-
-	if *joinPeer != "" {
-		var peers []string
-		// Check if we should use service discovery to find the peer
-		if _, _, err = iputil.SplitHostPort(*joinPeer); err != nil {
-			peers, err = getAddrViaSD(*joinPeer)
-			if err != nil {
-				logger.Fatal("failed to get addresses", zap.Error(err))
-			}
-		} else {
-			peers = []string{*joinPeer}
-		}
-
-		if _, err = gpool.Join(peers); err != nil {
-			logger.Info("failed to join peer", zap.Error(err))
-		}
-	}
-	return gsp, gpool
-}
-
-func getAddrViaSD(name string) ([]string, error) {
-	_, addrs, err := net.DefaultResolver.LookupSRV(context.Background(), "", "", name)
-	out := make([]string, len(addrs))
-	if err == nil {
-		for i, addr := range addrs {
-			out[i] = fmt.Sprintf("%s:%d", strings.TrimSuffix(addr.Target, "."), addr.Port)
-		}
-	}
-	return out, err
-}
-
 func makeNode() *node.Node {
 	nd := node.New()
-	if *metaList != "" {
-		meta := types.ParseMetaFromString(*metaList)
+	if *nodeMeta != "" {
+		meta := types.ParseMetaFromString(*nodeMeta)
 		if nd.Meta == nil {
 			nd.Meta = make(types.Meta)
 		}
@@ -108,39 +44,80 @@ func makeNode() *node.Node {
 	return nd
 }
 
+func makeCollectors(nd *node.Node, eng *collector.Engine, conf map[string]*config.CollectorConfig) error {
+	for typ, c := range conf {
+		var cltr collector.Collector
+		switch typ {
+		case "node":
+			cltr = &collector.NodeCollector{}
+			conf[typ].Config["node"] = *nd
+
+		case "docker":
+			cltr = &collector.DockerCollector{}
+		default:
+			return fmt.Errorf("unsupported collector: %s", typ)
+		}
+
+		err := cltr.Init(c.Config)
+		if err == nil {
+			interval := c.IntervalDuration()
+			if interval < 0 {
+				return fmt.Errorf("invalid interval: %s", c.Interval)
+			}
+			eng.Register(cltr, interval)
+			continue
+		}
+		return err
+	}
+	return nil
+}
+
 func main() {
+
 	logger, _ := zap.NewDevelopment()
+	var (
+		conf *config.Config
+		err  error
+	)
+	if *confFile != "" {
+		conf, err = config.ParseFile(*confFile)
+		if err != nil {
+			logger.Fatal("failed to parse config", zap.Error(err))
+		}
+	}
+
 	nd := makeNode()
 	logger.Info("node stats",
+		zap.String("meta", nd.Meta.String()),
 		zap.Uint64("cpu", nd.CPUShares),
 		zap.Uint64("memory", nd.Memory),
 		zap.Time("bootime", time.Unix(0, int64(nd.BootTime))),
 	)
 
-	cc, err := metermaid.NewCCollector(logger)
-	if err != nil {
-		logger.Fatal("failed to initialize metermaid", zap.Error(err))
+	eng := collector.NewEngine(logger)
+	if err = makeCollectors(nd, eng, conf.Collectors); err != nil {
+		logger.Fatal("failed to initialize collectors", zap.Error(err))
 	}
 
-	conf := &metermaid.Config{
-		Node:             nd,
-		ContainerStorage: storage.NewInmemContainers(),
-		Collector:        cc,
-		Logger:           logger,
-		// Pricer:           pricing.NewProvider(nd),
+	// dc := &collector.DockerCollector{}
+	// dc.Init(map[string]interface{}{"labels": []string{"service"}})
+	// eng.Register(dc, 10*time.Second)
+
+	// nc := &collector.NodeCollector{}
+	// nc.Init(map[string]interface{}{"node": *nd})
+	// eng.Register(nc, 10*time.Second)
+
+	eng.Start()
+
+	var defTags types.Meta
+	if *metricMeta != "" {
+		defTags = types.ParseMetaFromString(*metricMeta)
 	}
-	mm := metermaid.New(conf)
-
-	gsp, gpool := initGossip(logger, nd)
-	napi := &nodeAPI{"/node", storage.NewGossipNodes(gpool)}
-	http.Handle("/node/", napi)
-
-	mmAPI := api.New(mm, logger)
-	go mmAPI.Serve(gsp.ListenTCP())
+	_ = metermaid.NewMetermaid(*nd, eng, nil, defTags, logger)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sigs
-	cc.Stop()
+	eng.Stop()
 }

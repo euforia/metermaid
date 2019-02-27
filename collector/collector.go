@@ -78,7 +78,7 @@ func (c *collector) run(ctx context.Context) {
 			} else {
 				c.log.Info("collection failed", zap.String("name", c.bc.Name()), zap.Error(err))
 			}
-			c.log.Debug("resetting", zap.String("name", c.bc.Name()))
+			// c.log.Debug("resetting", zap.String("name", c.bc.Name()))
 			timer.Reset(c.interval)
 
 		case <-ctx.Done():

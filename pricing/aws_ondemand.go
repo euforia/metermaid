@@ -65,10 +65,6 @@ func (pp *AWSOnDemandPricer) OnDemandHistory(filter map[string]string) (tsdb.Dat
 	if err == nil {
 		var dps tsdb.DataPoints
 		if dps, err = parseOnDemandPriceData(priceList); err == nil {
-			// Add meta
-			// for i := range dps {
-			// 	dps[i].Meta = filter
-			// }
 			return dps, nil
 		}
 	}
