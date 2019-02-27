@@ -15,9 +15,9 @@ require (
 	github.com/hexablock/log v0.0.0-20180731202806-50981b397262 // indirect
 	github.com/hexablock/vivaldi v0.0.0-20180727225019-07adad3f2b5f // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
-	github.com/pkg/errors v0.8.1 // indirect
+	github.com/pkg/errors v0.8.1
 	github.com/shirou/gopsutil v2.18.12+incompatible
-	github.com/zorkian/go-datadog-api v2.19.0+incompatible // indirect
+	github.com/zorkian/go-datadog-api v2.19.0+incompatible
 	go.uber.org/atomic v1.3.2 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.9.1
