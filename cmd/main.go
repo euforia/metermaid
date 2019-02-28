@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -19,8 +18,8 @@ import (
 )
 
 var (
-	nodeMeta   = flag.String("node.meta", "", "additional node metadata key=value, ...")
-	metricMeta = flag.String("metric.meta", "", "default metadata to add to all collections key=value, ...")
+	nodeMeta   = flag.String("node-meta", "", "additional node metadata key=value, ...")
+	metricMeta = flag.String("metric-meta", "", "metadata to add to all collections key=value, ...")
 	confFile   = flag.String("conf", "", "path to config file")
 	debug      = flag.Bool("debug", false, "")
 )
@@ -84,15 +83,9 @@ func makeSink(logger *zap.Logger, cont map[string]*config.SinkConfig) (sink.Sink
 	return msink, nil
 }
 
-func getDefaultMeta() types.Meta {
-	if *metricMeta != "" {
-		return types.ParseMetaFromString(*metricMeta)
-	}
-	return nil
-}
-
 func main() {
 	var (
+		nd        = makeNode(*nodeMeta)
 		userConf  *config.Config
 		err       error
 		logger, _ = zap.NewDevelopment()
@@ -105,14 +98,6 @@ func main() {
 		}
 	}
 
-	nd := makeNode(*nodeMeta)
-	logger.Info("node stats",
-		zap.String("meta", nd.Meta.String()),
-		zap.Uint64("cpu", nd.CPUShares),
-		zap.Uint64("memory", nd.Memory),
-		zap.Time("bootime", time.Unix(0, int64(nd.BootTime))),
-	)
-
 	eng := collector.NewEngine(logger)
 	if err = makeCollectors(nd, eng, userConf.Collectors); err != nil {
 		logger.Fatal("failed to initialize collectors", zap.Error(err))
@@ -122,10 +107,8 @@ func main() {
 		Node:        nd,
 		Collector:   eng,
 		Logger:      logger,
-		DefaultMeta: getDefaultMeta(),
+		DefaultMeta: types.ParseMetaFromString(*metricMeta),
 	}
-
-	// eng.Start()
 
 	snk, err := makeSink(logger, userConf.Sinks)
 	if err != nil {

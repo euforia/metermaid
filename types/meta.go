@@ -9,6 +9,10 @@ import (
 type Meta map[string]string
 
 func ParseMetaFromString(str string) Meta {
+	str = strings.TrimSpace(str)
+	if len(str) == 0 {
+		return nil
+	}
 	meta := make(Meta)
 	kvpairs := strings.Split(str, ",")
 	for _, kvp := range kvpairs {

@@ -43,16 +43,12 @@ type Pricer struct {
 
 // NewPricer returns a new Pricer for the given node
 func NewPricer(nd node.Node, logger *zap.Logger) *Pricer {
-	pr := &Pricer{
+	return &Pricer{
 		pp:         NewProvider(nd),
 		node:       nd,
 		log:        logger,
 		refetchMin: 300e9,
 	}
-
-	logger.Info("pricer loaded", zap.String("backend", pr.pp.Name()))
-
-	return pr
 }
 
 // Initialize fetches all prices starting at the boot time of the node
@@ -67,6 +63,11 @@ func (pr *Pricer) Initialize() error {
 		)
 	}
 	return err
+}
+
+// Name returns the name of the pricing backend
+func (pr *Pricer) Name() string {
+	return pr.pp.Name()
 }
 
 // History satisfies the Provider interface

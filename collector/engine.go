@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -45,12 +46,22 @@ func (eng *Engine) RunStats() <-chan []RunStats {
 	return eng.out
 }
 
+// Start starts each registered collector
 func (eng *Engine) Start() {
+	var kstr string
+	for k := range eng.collectors {
+		kstr += k + ","
+	}
+	kstr = strings.TrimSuffix(kstr, ",")
+	eng.log.Info("engine starting", zap.String("collectors", kstr))
+
 	for _, c := range eng.collectors {
 		go c.run(eng.ctx)
 	}
 }
 
+// Stop signals all collectors to stop and waits for them to exit before
+// returning
 func (eng *Engine) Stop() {
 	select {
 	case <-eng.ctx.Done():

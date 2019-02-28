@@ -20,18 +20,21 @@ const (
 
 // Collector implements the collection of runtime information
 type Collector interface {
+	Start()
 	RunStats() <-chan []collector.RunStats
+	Stop()
 }
 
 // Config holds the metermaid config
 type Config struct {
 	Node        *node.Node
-	Collector   *collector.Engine
+	Collector   Collector
 	Sink        sink.Sink
 	DefaultMeta types.Meta
 	Logger      *zap.Logger
 }
 
+// MeterMaid is the canonical interface for price metering
 type MeterMaid interface {
 	Start() error
 	Shutdown()
@@ -46,13 +49,14 @@ type metermaid struct {
 	memWeight float64
 
 	pricer    *pricing.Pricer
-	collector *collector.Engine
+	collector Collector
 	sink      sink.Sink
 
 	done chan struct{}
 	log  *zap.Logger
 }
 
+// New returns a new MeterMaid instance based on the config
 func New(conf *Config) MeterMaid {
 	mm := &metermaid{
 		node:        *conf.Node,
@@ -66,30 +70,37 @@ func New(conf *Config) MeterMaid {
 		done:        make(chan struct{}),
 	}
 
-	// if err := mm.pricer.Initialize(); err != nil {
-	// 	mm.log.Fatal("pricer failed to initialize", zap.Error(err))
-	// }
+	mm.init()
+
+	return mm
+}
+
+func (mm *metermaid) init() {
+	mm.log.Info("node",
+		zap.String("meta", mm.node.Meta.String()),
+		zap.Uint64("cpu", mm.node.CPUShares),
+		zap.Uint64("memory", mm.node.Memory),
+		zap.Time("bootime", time.Unix(0, int64(mm.node.BootTime))),
+	)
+
+	mm.log.Info("pricer loaded", zap.String("backend", mm.pricer.Name()))
 
 	if mm.sink == nil {
 		mm.sink = &sink.StdoutSink{}
 	}
 	mm.log.Info("sink loaded", zap.String("name", mm.sink.Name()))
-
-	// go mm.run(conf.Collector.RunStats())
-
-	return mm
 }
 
-func (pc *metermaid) Start() error {
-	err := pc.pricer.Initialize()
+func (mm *metermaid) Start() error {
+	err := mm.pricer.Initialize()
 	if err == nil {
-		pc.collector.Start()
-		go pc.run(pc.collector.RunStats())
+		mm.collector.Start()
+		go mm.run(mm.collector.RunStats())
 	}
 	return err
 }
 
-func (pc *metermaid) run(ch <-chan []collector.RunStats) {
+func (mm *metermaid) run(ch <-chan []collector.RunStats) {
 	for runStats := range ch {
 		seri := []tsdb.Series{}
 		now := time.Now()
@@ -97,36 +108,36 @@ func (pc *metermaid) run(ch <-chan []collector.RunStats) {
 			if rs.End.Unix() <= 0 {
 				rs.End = now
 			}
-			for k, v := range pc.defaultTags {
+			for k, v := range mm.defaultTags {
 				rs.Meta[k] = v
 			}
 
-			s, err := pc.makePriceSeries(rs)
+			s, err := mm.makePriceSeries(rs)
 			if err == nil {
 				seri = append(seri, s)
 				continue
 			}
-			pc.log.Info("failed to make series", zap.Error(err))
+			mm.log.Info("failed to make series", zap.Error(err))
 		}
 
 		if len(seri) > 0 {
-			if err := pc.sink.Publish(seri...); err != nil {
-				pc.log.Info("failed to publish", zap.Error(err))
+			if err := mm.sink.Publish(seri...); err != nil {
+				mm.log.Info("failed to publish", zap.Error(err))
 			} else {
 				for _, s := range seri {
-					pc.log.Debug("published", zap.String("name", s.ID()))
+					mm.log.Debug("published", zap.String("name", s.ID()))
 				}
-				pc.log.Info("published", zap.Int("count", len(seri)))
+				mm.log.Info("published", zap.Int("count", len(seri)))
 			}
 		}
 	}
 
-	close(pc.done)
+	close(mm.done)
 }
 
-func (pc *metermaid) makePriceSeries(rs collector.RunStats) (tsdb.Series, error) {
+func (mm *metermaid) makePriceSeries(rs collector.RunStats) (tsdb.Series, error) {
 	s := tsdb.Series{Meta: rs.Meta}
-	prices, err := pc.pricer.History(rs.Start, rs.End)
+	prices, err := mm.pricer.History(rs.Start, rs.End)
 	if err != nil {
 		return s, err
 	}
@@ -148,15 +159,15 @@ func (pc *metermaid) makePriceSeries(rs collector.RunStats) (tsdb.Series, error)
 		)
 
 		if rs.CPU > 0 {
-			cu = prices.Scale(pc.cpuWeight * float64(rs.CPU) / float64(pc.node.CPUShares))
+			cu = prices.Scale(mm.cpuWeight * float64(rs.CPU) / float64(mm.node.CPUShares))
 		} else {
-			cu = prices.Scale(pc.cpuWeight)
+			cu = prices.Scale(mm.cpuWeight)
 		}
 
 		if rs.Memory > 0 {
-			mu = prices.Scale(pc.memWeight * float64(rs.Memory) / float64(pc.node.Memory))
+			mu = prices.Scale(mm.memWeight * float64(rs.Memory) / float64(mm.node.Memory))
 		} else {
-			mu = prices.Scale(pc.memWeight)
+			mu = prices.Scale(mm.memWeight)
 		}
 
 		s.Data = tsdb.DataPoints{tsdb.DataPoint{
@@ -172,7 +183,7 @@ func (pc *metermaid) makePriceSeries(rs collector.RunStats) (tsdb.Series, error)
 	return s, nil
 }
 
-func (pc *metermaid) Shutdown() {
-	pc.collector.Stop()
-	<-pc.done
+func (mm *metermaid) Shutdown() {
+	mm.collector.Stop()
+	<-mm.done
 }
