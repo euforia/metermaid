@@ -7,14 +7,14 @@ import (
 	"github.com/zorkian/go-datadog-api"
 )
 
-type DataDog struct {
+type DataDogSink struct {
 	client *datadog.Client
 
 	// default tags added to all metrics
 	// tags map[string]string
 }
 
-func NewDataDog(apiKey, appKey string) *DataDog {
+func NewDataDogSink(apiKey, appKey string) *DataDogSink {
 	if apiKey == "" {
 		apiKey = os.Getenv("DD_API_KEY")
 	}
@@ -22,12 +22,14 @@ func NewDataDog(apiKey, appKey string) *DataDog {
 		appKey = os.Getenv("DD_APP_KEY")
 	}
 
-	return &DataDog{client: datadog.NewClient(apiKey, appKey)}
+	return &DataDogSink{client: datadog.NewClient(apiKey, appKey)}
 }
 
-// func (dd *DataDog) SetDefaultTags(tags map[string]string) { dd.tags = tags }
+func (dd *DataDogSink) Name() string {
+	return "datadog"
+}
 
-func (dd *DataDog) Publish(seri ...tsdb.Series) error {
+func (dd *DataDogSink) Publish(seri ...tsdb.Series) error {
 	metrics := make([]datadog.Metric, len(seri))
 	for i, s := range seri {
 		metric := datadog.Metric{
@@ -41,7 +43,6 @@ func (dd *DataDog) Publish(seri ...tsdb.Series) error {
 			metric.Points[j] = datadog.DataPoint{&ts, &val}
 		}
 		metrics[i] = metric
-		//
 	}
 	return dd.client.PostMetrics(metrics)
 }

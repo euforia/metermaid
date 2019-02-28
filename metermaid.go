@@ -51,6 +51,7 @@ func NewMetermaid(nd node.Node, eng CollectorEngine, snk sink.Sink, defaulTags t
 		mm.sink = &sink.StdoutSink{}
 	}
 
+	mm.log.Info("sinks loaded", zap.String("name", mm.sink.Name()))
 	go mm.run(eng.RunStats())
 
 	return mm
@@ -80,7 +81,10 @@ func (pc *metermaid) run(ch <-chan []collector.RunStats) {
 			if err := pc.sink.Publish(seri...); err != nil {
 				pc.log.Info("failed to publish", zap.Error(err))
 			} else {
-				pc.log.Debug("published", zap.Int("count", len(seri)))
+				for _, s := range seri {
+					pc.log.Debug("published", zap.String("name", s.ID()))
+				}
+				pc.log.Info("published", zap.Int("count", len(seri)))
 			}
 		}
 	}

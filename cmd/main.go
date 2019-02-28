@@ -14,6 +14,7 @@ import (
 	"github.com/euforia/metermaid/collector"
 	"github.com/euforia/metermaid/config"
 	"github.com/euforia/metermaid/node"
+	"github.com/euforia/metermaid/sink"
 	"github.com/euforia/metermaid/types"
 )
 
@@ -21,6 +22,7 @@ var (
 	nodeMeta   = flag.String("node.meta", "", "additional node metadata key=value, ...")
 	metricMeta = flag.String("metric.meta", "", "default metadata to add to all collections key=value, ...")
 	confFile   = flag.String("conf", "", "path to config file")
+	debug      = flag.Bool("debug", false, "")
 )
 
 func init() {
@@ -69,13 +71,39 @@ func makeCollectors(nd *node.Node, eng *collector.Engine, conf map[string]*confi
 	return nil
 }
 
-func main() {
+func makeSink(logger *zap.Logger, cont map[string]*config.SinkConfig) (sink.Sink, error) {
+	msink := sink.NewMultiSink(logger)
+	for k := range cont {
+		snk, err := sink.New(k)
+		if err == nil {
+			msink.Register(snk)
+			continue
+		}
+		return nil, err
+	}
 
-	logger, _ := zap.NewDevelopment()
+	if *debug {
+		s, _ := sink.New("stdout")
+		msink.Register(s)
+	}
+
+	return msink, nil
+}
+
+func getDefaultMeta() types.Meta {
+	if *metricMeta != "" {
+		return types.ParseMetaFromString(*metricMeta)
+	}
+	return nil
+}
+
+func main() {
 	var (
-		conf *config.Config
-		err  error
+		conf      *config.Config
+		err       error
+		logger, _ = zap.NewDevelopment()
 	)
+
 	if *confFile != "" {
 		conf, err = config.ParseFile(*confFile)
 		if err != nil {
@@ -96,21 +124,14 @@ func main() {
 		logger.Fatal("failed to initialize collectors", zap.Error(err))
 	}
 
-	// dc := &collector.DockerCollector{}
-	// dc.Init(map[string]interface{}{"labels": []string{"service"}})
-	// eng.Register(dc, 10*time.Second)
-
-	// nc := &collector.NodeCollector{}
-	// nc.Init(map[string]interface{}{"node": *nd})
-	// eng.Register(nc, 10*time.Second)
-
 	eng.Start()
 
-	var defTags types.Meta
-	if *metricMeta != "" {
-		defTags = types.ParseMetaFromString(*metricMeta)
+	snk, err := makeSink(logger, conf.Sinks)
+	if err != nil {
+		logger.Fatal("failed to initialize sink", zap.Error(err))
 	}
-	_ = metermaid.NewMetermaid(*nd, eng, nil, defTags, logger)
+	defTags := getDefaultMeta()
+	_ = metermaid.NewMetermaid(*nd, eng, snk, defTags, logger)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

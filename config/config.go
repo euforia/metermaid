@@ -9,8 +9,19 @@ import (
 
 type Config struct {
 	Collectors map[string]*CollectorConfig
-	Sinks      map[string]interface{}
+	Sinks      map[string]*SinkConfig
 }
+
+func ParseFile(filename string) (*Config, error) {
+	var conf Config
+	b, err := ioutil.ReadFile(filename)
+	if err == nil {
+		err = hcl.Unmarshal(b, &conf)
+	}
+	return &conf, err
+}
+
+type SinkConfig struct{}
 
 type CollectorConfig struct {
 	Interval string
@@ -22,13 +33,4 @@ func (cc *CollectorConfig) IntervalDuration() time.Duration {
 		return d
 	}
 	return -1
-}
-
-func ParseFile(filename string) (*Config, error) {
-	var conf Config
-	b, err := ioutil.ReadFile(filename)
-	if err == nil {
-		err = hcl.Unmarshal(b, &conf)
-	}
-	return &conf, err
 }
