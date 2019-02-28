@@ -29,9 +29,9 @@ func init() {
 	flag.Parse()
 }
 
-func makeNode() *node.Node {
+func makeNode(metastr string) *node.Node {
 	nd := node.New()
-	if *nodeMeta != "" {
+	if metastr != "" {
 		meta := types.ParseMetaFromString(*nodeMeta)
 		if nd.Meta == nil {
 			nd.Meta = make(types.Meta)
@@ -45,19 +45,13 @@ func makeNode() *node.Node {
 
 func makeCollectors(nd *node.Node, eng *collector.Engine, conf map[string]*config.CollectorConfig) error {
 	for typ, c := range conf {
-		var cltr collector.Collector
-		switch typ {
-		case "node":
-			cltr = &collector.NodeCollector{}
-			conf[typ].Config["node"] = *nd
-
-		case "docker":
-			cltr = &collector.DockerCollector{}
-		default:
-			return fmt.Errorf("unsupported collector: %s", typ)
+		cltr, err := collector.New(typ)
+		if err != nil {
+			return err
 		}
 
-		err := cltr.Init(c.Config)
+		c.Config["node"] = *nd
+		err = cltr.Init(c.Config)
 		if err == nil {
 			interval := c.IntervalDuration()
 			if interval < 0 {
@@ -99,19 +93,19 @@ func getDefaultMeta() types.Meta {
 
 func main() {
 	var (
-		conf      *config.Config
+		userConf  *config.Config
 		err       error
 		logger, _ = zap.NewDevelopment()
 	)
 
 	if *confFile != "" {
-		conf, err = config.ParseFile(*confFile)
+		userConf, err = config.ParseFile(*confFile)
 		if err != nil {
 			logger.Fatal("failed to parse config", zap.Error(err))
 		}
 	}
 
-	nd := makeNode()
+	nd := makeNode(*nodeMeta)
 	logger.Info("node stats",
 		zap.String("meta", nd.Meta.String()),
 		zap.Uint64("cpu", nd.CPUShares),
@@ -120,22 +114,33 @@ func main() {
 	)
 
 	eng := collector.NewEngine(logger)
-	if err = makeCollectors(nd, eng, conf.Collectors); err != nil {
+	if err = makeCollectors(nd, eng, userConf.Collectors); err != nil {
 		logger.Fatal("failed to initialize collectors", zap.Error(err))
 	}
 
-	eng.Start()
+	conf := &metermaid.Config{
+		Node:        nd,
+		Collector:   eng,
+		Logger:      logger,
+		DefaultMeta: getDefaultMeta(),
+	}
 
-	snk, err := makeSink(logger, conf.Sinks)
+	// eng.Start()
+
+	snk, err := makeSink(logger, userConf.Sinks)
 	if err != nil {
 		logger.Fatal("failed to initialize sink", zap.Error(err))
 	}
-	defTags := getDefaultMeta()
-	_ = metermaid.NewMetermaid(*nd, eng, snk, defTags, logger)
+	conf.Sink = snk
+
+	mm := metermaid.New(conf)
+	if err = mm.Start(); err != nil {
+		logger.Fatal("failed to start", zap.Error(err))
+	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sigs
-	eng.Stop()
+	mm.Shutdown()
 }

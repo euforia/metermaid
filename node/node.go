@@ -161,7 +161,7 @@ func New() *Node {
 	var mhz float64
 	for _, c := range cpus {
 		// Convert to Hz
-		mhz += c.Mhz * 1024 * 1024 * float64(c.Cores)
+		mhz += c.Mhz * 1e6 * float64(c.Cores)
 	}
 
 	node := &Node{

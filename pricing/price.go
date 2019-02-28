@@ -50,16 +50,23 @@ func NewPricer(nd node.Node, logger *zap.Logger) *Pricer {
 		refetchMin: 300e9,
 	}
 
-	start := time.Unix(0, int64(nd.BootTime))
-	pr.fetchHistory(start, start, time.Now())
-	logger.Info("pricer",
-		zap.String("backend", pr.pp.Name()),
-		zap.Time("cache.start", time.Unix(0, int64(pr.cache[0].Timestamp))),
-		zap.Time("cache.end", time.Unix(0, int64(pr.cache.Last().Timestamp))),
-		zap.Int("cache.size", len(pr.cache)),
-	)
+	logger.Info("pricer loaded", zap.String("backend", pr.pp.Name()))
 
 	return pr
+}
+
+// Initialize fetches all prices starting at the boot time of the node
+func (pr *Pricer) Initialize() error {
+	start := time.Unix(0, int64(pr.node.BootTime))
+	_, err := pr.fetchHistory(start, start, time.Now())
+	if err == nil {
+		pr.log.Info("pricer cache",
+			zap.Time("start", time.Unix(0, int64(pr.cache[0].Timestamp))),
+			zap.Time("end", time.Unix(0, int64(pr.cache.Last().Timestamp))),
+			zap.Int("count", len(pr.cache)),
+		)
+	}
+	return err
 }
 
 // History satisfies the Provider interface
@@ -103,8 +110,8 @@ func (pr *Pricer) history(start, end time.Time) (tsdb.DataPoints, error) {
 		val := last.Value
 		pr.mu.RUnlock()
 		return tsdb.DataPoints{
-			tsdb.DataPoint{uint64(start.UnixNano()), val},
-			tsdb.DataPoint{uint64(end.UnixNano()), val},
+			tsdb.DataPoint{Timestamp: uint64(start.UnixNano()), Value: val},
+			tsdb.DataPoint{Timestamp: uint64(end.UnixNano()), Value: val},
 		}, nil
 	}
 	// 5 min since last fetch

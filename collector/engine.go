@@ -37,8 +37,10 @@ func (eng *Engine) Register(c Collector, interval time.Duration) {
 		log:      eng.log,
 	}
 	eng.collectors[c.Name()] = cltr
+	eng.log.Info("collector registered", zap.String("name", c.Name()))
 }
 
+// RunStats returns a channel containing newly available runtimes
 func (eng *Engine) RunStats() <-chan []RunStats {
 	return eng.out
 }

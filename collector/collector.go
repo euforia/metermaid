@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -51,6 +52,22 @@ type Collector interface {
 	Collect(context.Context) ([]RunStats, error)
 }
 
+// New returns a new Collector of the given type or an error if the type is
+// not supported
+func New(typ string) (cltr Collector, err error) {
+	switch typ {
+	case "node":
+		cltr = &NodeCollector{}
+		// conf[typ].Config["node"] = *nd
+	case "docker":
+		cltr = &DockerCollector{}
+	default:
+		err = fmt.Errorf("unsupported collector: %s", typ)
+	}
+
+	return
+}
+
 type collector struct {
 	interval time.Duration
 	bc       Collector
@@ -89,24 +106,3 @@ func (c *collector) run(ctx context.Context) {
 
 	}
 }
-
-// schedule start the process of scheduling collections. Each collection
-// is rescheduled upon each run
-// func (c *collector) schedule() {
-// 	data, err := c.bc.Collect(c.ctx)
-// 	if err == nil {
-// 		c.out <- data
-// 	}
-
-// 	select {
-// 	case <-c.ctx.Done():
-
-// 	default:
-// 		time.AfterFunc(c.interval, c.schedule)
-// 		c.log.Debug("collector rescheduled",
-// 			zap.String("name", c.bc.Name()),
-// 			zap.Duration("interval", c.interval),
-// 		)
-
-// 	}
-// }

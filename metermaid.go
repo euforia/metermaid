@@ -13,48 +13,80 @@ import (
 	"go.uber.org/zap"
 )
 
-type CollectorEngine interface {
-	RunStats() <-chan []collector.RunStats
-}
-
 const (
 	metricNameCostNode      = "cost.node"
 	metricNameCostContainer = "cost.container"
 )
 
+// Collector implements the collection of runtime information
+type Collector interface {
+	RunStats() <-chan []collector.RunStats
+}
+
+// Config holds the metermaid config
+type Config struct {
+	Node        *node.Node
+	Collector   *collector.Engine
+	Sink        sink.Sink
+	DefaultMeta types.Meta
+	Logger      *zap.Logger
+}
+
+type MeterMaid interface {
+	Start() error
+	Shutdown()
+}
+
 type metermaid struct {
 	node node.Node
 
-	pricer *pricing.Pricer
+	defaultTags types.Meta
 
 	cpuWeight float64
 	memWeight float64
 
-	sink sink.Sink
+	pricer    *pricing.Pricer
+	collector *collector.Engine
+	sink      sink.Sink
 
-	defaultTags types.Meta
-
-	log *zap.Logger
+	done chan struct{}
+	log  *zap.Logger
 }
 
-func NewMetermaid(nd node.Node, eng CollectorEngine, snk sink.Sink, defaulTags types.Meta, logger *zap.Logger) *metermaid {
+func New(conf *Config) MeterMaid {
 	mm := &metermaid{
-		node:        nd,
+		node:        *conf.Node,
 		cpuWeight:   0.5,
 		memWeight:   0.5,
-		sink:        snk,
-		defaultTags: defaulTags,
-		pricer:      pricing.NewPricer(nd, logger),
-		log:         logger,
+		collector:   conf.Collector,
+		sink:        conf.Sink,
+		pricer:      pricing.NewPricer(*conf.Node, conf.Logger),
+		defaultTags: conf.DefaultMeta,
+		log:         conf.Logger,
+		done:        make(chan struct{}),
 	}
+
+	// if err := mm.pricer.Initialize(); err != nil {
+	// 	mm.log.Fatal("pricer failed to initialize", zap.Error(err))
+	// }
+
 	if mm.sink == nil {
 		mm.sink = &sink.StdoutSink{}
 	}
+	mm.log.Info("sink loaded", zap.String("name", mm.sink.Name()))
 
-	mm.log.Info("sinks loaded", zap.String("name", mm.sink.Name()))
-	go mm.run(eng.RunStats())
+	// go mm.run(conf.Collector.RunStats())
 
 	return mm
+}
+
+func (pc *metermaid) Start() error {
+	err := pc.pricer.Initialize()
+	if err == nil {
+		pc.collector.Start()
+		go pc.run(pc.collector.RunStats())
+	}
+	return err
 }
 
 func (pc *metermaid) run(ch <-chan []collector.RunStats) {
@@ -88,6 +120,8 @@ func (pc *metermaid) run(ch <-chan []collector.RunStats) {
 			}
 		}
 	}
+
+	close(pc.done)
 }
 
 func (pc *metermaid) makePriceSeries(rs collector.RunStats) (tsdb.Series, error) {
@@ -136,4 +170,9 @@ func (pc *metermaid) makePriceSeries(rs collector.RunStats) (tsdb.Series, error)
 	}
 
 	return s, nil
+}
+
+func (pc *metermaid) Shutdown() {
+	pc.collector.Stop()
+	<-pc.done
 }
