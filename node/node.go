@@ -150,7 +150,7 @@ func (n *Node) IsAWSSpot() bool {
 
 // New computes the total cpu shares and memory of the system
 // and returns a new Node instance
-func New() *Node {
+func New() (*Node, error) {
 	cpus, _ := cpu.Info()
 	// Get total for all cpus and cores
 	var mhz float64
@@ -178,27 +178,30 @@ func New() *Node {
 		}
 
 		if mp := NewMetaProvider(node.Platform.Name); mp != nil {
-			node.Meta = mp.Meta()
+			node.Meta, err = mp.Meta()
 		}
 	}
 
-	return node
+	return node, err
 }
 
 // NewWithMeta returns a new Node with the given metadata
-func NewWithMeta(meta types.Meta) *Node {
-	nd := New()
-	if nd.Meta == nil {
-		nd.Meta = make(types.Meta)
+func NewWithMeta(meta types.Meta) (*Node, error) {
+	nd, err := New()
+	if err == nil {
+		if nd.Meta == nil {
+			nd.Meta = make(types.Meta)
+		}
+		for k, v := range meta {
+			nd.Meta[k] = v
+		}
 	}
-	for k, v := range meta {
-		nd.Meta[k] = v
-	}
-	return nd
+
+	return nd, err
 }
 
 // NewWithMetaString returns a new node parsing the input metadata string
-func NewWithMetaString(metastr string) *Node {
+func NewWithMetaString(metastr string) (*Node, error) {
 	if metastr != "" {
 		meta := types.ParseMetaFromString(metastr)
 		return NewWithMeta(meta)

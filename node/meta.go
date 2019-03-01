@@ -16,7 +16,7 @@ const (
 
 // MetaProvider implements a node metadata provider
 type MetaProvider interface {
-	Meta() types.Meta
+	Meta() (types.Meta, error)
 }
 
 // NewMetaProvider returns a new node metadata provider based on the given
@@ -38,7 +38,7 @@ func NewAWSNodeMeta() *AWSNodeMeta {
 }
 
 // Meta returns metadata for the node
-func (nodemeta *AWSNodeMeta) Meta() types.Meta {
+func (nodemeta *AWSNodeMeta) Meta() (types.Meta, error) {
 	meta, err := getInstanceMeta()
 	if err == nil {
 		var reserve *ec2.Reservation
@@ -52,7 +52,7 @@ func (nodemeta *AWSNodeMeta) Meta() types.Meta {
 		}
 	}
 
-	return meta
+	return meta, err
 }
 
 func getInstanceMeta() (map[string]string, error) {

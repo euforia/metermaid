@@ -7,7 +7,7 @@ import (
 )
 
 func Test_Node(t *testing.T) {
-	node := New()
+	node, _ := New()
 	assert.NotEmpty(t, node.CPUShares)
 	assert.NotEmpty(t, node.Memory)
 }

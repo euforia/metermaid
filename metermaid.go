@@ -71,6 +71,7 @@ func (mm *metermaid) init() {
 		zap.Uint64("cpu", mm.node.CPUShares),
 		zap.Uint64("memory", mm.node.Memory),
 		zap.Time("bootime", time.Unix(0, int64(mm.node.BootTime))),
+		zap.String("platform", mm.node.Platform.Name),
 		zap.String("meta", mm.node.Meta.String()),
 	)
 

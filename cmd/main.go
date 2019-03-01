@@ -62,8 +62,13 @@ func main() {
 	}
 
 	logger, _ := zap.NewDevelopment()
+	nd, err := node.NewWithMetaString(*nodeMeta)
+	if err != nil {
+		logger.Info("node metadata partially loaded", zap.Error(err))
+	}
+
 	conf := &metermaid.Config{
-		Node:        node.NewWithMetaString(*nodeMeta),
+		Node:        nd,
 		DefaultMeta: types.ParseMetaFromString(*metricMeta),
 		Logger:      logger,
 	}
