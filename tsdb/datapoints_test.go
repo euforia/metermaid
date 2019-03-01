@@ -103,39 +103,6 @@ var dpsDedupTests = []dpsTestCase{
 	},
 }
 
-// var dpsDedupValuesTests = []dpsTestCase{
-// 	dpsTestCase{
-// 		dps: DataPoints{
-// 			DataPoint{10, 1, nil},
-// 			DataPoint{12, 2, nil},
-// 			DataPoint{20, 1, nil},
-// 			DataPoint{20, 1, nil},
-// 			DataPoint{20, 1, nil},
-// 		},
-// 		expected: 3,
-// 	},
-// 	dpsTestCase{
-// 		dps: DataPoints{
-// 			DataPoint{10, 2, nil},
-// 			DataPoint{12, 1, nil},
-// 			DataPoint{20, 1, nil},
-// 			DataPoint{12, 1, nil},
-// 			DataPoint{20, 1, nil},
-// 		},
-// 		expected: 2,
-// 	},
-// 	dpsTestCase{
-// 		dps: DataPoints{
-// 			DataPoint{10, 1, nil},
-// 			DataPoint{12, 1, nil},
-// 			DataPoint{20, 1, nil},
-// 			DataPoint{12, 1, nil},
-// 			DataPoint{20, 1, nil},
-// 		},
-// 		expected: 1,
-// 	},
-// }
-
 var dpsPerTests = dpsTestCase{
 	dps: DataPoints{
 		DataPoint{100, 1},
@@ -226,9 +193,3 @@ func Test_Datapoints_Scale_Sum(t *testing.T) {
 	}
 	assert.Equal(t, 2.5, dps.Sum())
 }
-
-// func Test_Datapoints_Per(t *testing.T) {
-// 	for _, tc := range dpsEncTests {
-// 		assert.Equal(t, tc.enc, tc.dps.Encompasses(tc.s, tc.e))
-// 	}
-// }

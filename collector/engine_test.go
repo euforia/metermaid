@@ -11,11 +11,12 @@ import (
 func Test_Engine(t *testing.T) {
 	logger := zap.NewExample()
 	eng := NewEngine(logger)
-	// ctx := context.Background()
 
 	dc := &DockerCollector{}
-	dc.Init(map[string]interface{}{})
-	eng.Register(dc, 10*time.Second)
+	eng.Register(dc, &Config{
+		Interval: 10 * time.Second,
+		Config:   map[string]interface{}{},
+	})
 
 	eng.Start()
 

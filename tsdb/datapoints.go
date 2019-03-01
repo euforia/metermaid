@@ -7,17 +7,6 @@ import (
 // DataPoints are a set of time sotable data points
 type DataPoints []DataPoint
 
-// // Encompasses returns true if the DataPoints encompass the given start and stop
-// // timestamps
-// func (c DataPoints) Encompasses(start, end uint64) bool {
-// 	l := len(c) - 1
-// 	if l >= 0 {
-// 		return start >= c[0].Timestamp && start <= c[l].Timestamp &&
-// 			end >= c[0].Timestamp && end <= c[l].Timestamp
-// 	}
-// 	return false
-// }
-
 // SumPerHour returns the sum of all values per hour.  The last value
 // is taken to fill in the gaps
 func (c DataPoints) SumPerHour() (total float64) {
@@ -158,48 +147,6 @@ func (c DataPoints) Scale(multiplier float64) DataPoints {
 	}
 	return out
 }
-
-// Per returns DataPoints that are filled in per the given interval
-// EXPERIMENTAL
-// func (c DataPoints) Per(dur time.Duration) DataPoints {
-// 	var (
-// 		l    = len(c) - 1
-// 		d    = uint64(dur)
-// 		gend = make(DataPoints, 0)
-// 	)
-
-// 	for i, p := range c[:l] {
-// 		delta := c[i+1].Timestamp - p.Timestamp
-// 		slots := delta / d
-
-// 		if remainder := delta % d; remainder != 0 {
-// 			// TODO: adjust the value based on remainder
-// 			for i := uint64(1); i <= slots; i++ {
-// 				gend = gend.Insert(DataPoint{
-// 					Timestamp: p.Timestamp + (i * d),
-// 					Value:     p.Value,
-// 					// Meta:      p.Meta,
-// 				})
-// 			}
-// 		} else {
-// 			for i := uint64(1); i < slots; i++ {
-// 				gend = gend.Insert(DataPoint{
-// 					Timestamp: p.Timestamp + (i * d),
-// 					Value:     p.Value,
-// 					// Meta:      p.Meta,
-// 				})
-// 			}
-// 		}
-// 	}
-
-// 	if len(gend) > 0 {
-// 		gend = gend.Insert(c...)
-// 		sort.Sort(gend)
-// 		return gend
-// 	}
-
-// 	return c
-// }
 
 func (c DataPoints) Len() int {
 	return len(c)

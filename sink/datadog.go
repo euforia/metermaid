@@ -7,13 +7,12 @@ import (
 	"github.com/zorkian/go-datadog-api"
 )
 
+// DataDogSink implements a Sink interface to DataDog
 type DataDogSink struct {
 	client *datadog.Client
-
-	// default tags added to all metrics
-	// tags map[string]string
 }
 
+// NewDataDogSink returns a new DataSink instance
 func NewDataDogSink(apiKey, appKey string) *DataDogSink {
 	if apiKey == "" {
 		apiKey = os.Getenv("DD_API_KEY")
@@ -25,10 +24,12 @@ func NewDataDogSink(apiKey, appKey string) *DataDogSink {
 	return &DataDogSink{client: datadog.NewClient(apiKey, appKey)}
 }
 
+// Name satisfies the Sink interface
 func (dd *DataDogSink) Name() string {
 	return "datadog"
 }
 
+// Publish satisfies the Sink interface
 func (dd *DataDogSink) Publish(seri ...tsdb.Series) error {
 	metrics := make([]datadog.Metric, len(seri))
 	for i, s := range seri {

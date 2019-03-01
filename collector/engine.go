@@ -3,11 +3,11 @@ package collector
 import (
 	"context"
 	"strings"
-	"time"
 
 	"go.uber.org/zap"
 )
 
+// Engine manages registered collectors
 type Engine struct {
 	collectors map[string]*collector
 	out        chan []RunStats
@@ -18,6 +18,7 @@ type Engine struct {
 	log *zap.Logger
 }
 
+// NewEngine returns a new Engine instance
 func NewEngine(logger *zap.Logger) *Engine {
 	eng := &Engine{
 		out:        make(chan []RunStats, 32),
@@ -30,15 +31,27 @@ func NewEngine(logger *zap.Logger) *Engine {
 }
 
 // Register registers a new Collector run at the given interval
-func (eng *Engine) Register(c Collector, interval time.Duration) {
-	cltr := &collector{
-		interval: interval,
+func (eng *Engine) Register(c Collector, conf *Config) error {
+	err := conf.Validate()
+	if err != nil {
+		return err
+	}
+
+	conf.Logger = eng.log
+	if err = c.Init(conf); err != nil {
+		return err
+	}
+
+	eng.collectors[c.Name()] = &collector{
+		interval: conf.Interval,
 		out:      eng.out,
 		bc:       c,
 		log:      eng.log,
+		done:     make(chan struct{}),
 	}
-	eng.collectors[c.Name()] = cltr
+
 	eng.log.Info("collector registered", zap.String("name", c.Name()))
+	return nil
 }
 
 // RunStats returns a channel containing newly available runtimes
@@ -68,6 +81,9 @@ func (eng *Engine) Stop() {
 		// already stopped
 	default:
 		eng.cancel()
+		for _, c := range eng.collectors {
+			c.stop()
+		}
 		close(eng.out)
 	}
 }

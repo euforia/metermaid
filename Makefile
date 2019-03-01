@@ -16,23 +16,10 @@ LD_OPTS = -ldflags="-X main.version=$(VERSION) -X main.buildtime=$(BUILDTIME) -w
 clean-$(NAME):
 	rm -rf $(BUILD_DIR)
 
-clean-ui:
-	rm -rf ui/build
-	rm -f ui/ui.go
-
-clean: clean-$(NAME) clean-ui
+clean: clean-$(NAME)
 
 deps:
 	go get -v golang.org/x/vgo
-
-ui/build:
-	cd ./ui/ && yarn --verbose build
-
-ui/ui.go:
-	cd ./ui/build && go-bindata -pkg ui -o ../ui.go ./...
-
-.PHONY: ui
-ui: ui/build ui/ui.go
 
 $(BUILD_DIR)/$(NAME):
 	GOOS=$(GOOS) CGO_ENABLED=0 vgo build $(BUILD_OPTS) $(LD_OPTS) -o $(BUILD_DIR)/$(NAME) $(SRC_FILES)

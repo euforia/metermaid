@@ -19,6 +19,8 @@ type MetaProvider interface {
 	Meta() types.Meta
 }
 
+// NewMetaProvider returns a new node metadata provider based on the given
+// platform
 func NewMetaProvider(platform string) MetaProvider {
 	switch platform {
 	case PlatformAmazon:

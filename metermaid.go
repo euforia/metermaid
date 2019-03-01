@@ -18,30 +18,24 @@ const (
 	metricNameCostContainer = "cost.container"
 )
 
-// Collector implements the collection of runtime information
-type Collector interface {
-	Start()
-	RunStats() <-chan []collector.RunStats
-	Stop()
-}
-
 // Config holds the metermaid config
 type Config struct {
-	Node        *node.Node
-	Collector   Collector
-	Sink        sink.Sink
+	Node *node.Node
+	// Meta tags to add to all metrics
 	DefaultMeta types.Meta
 	Logger      *zap.Logger
 }
 
 // MeterMaid is the canonical interface for price metering
 type MeterMaid interface {
+	RegisterCollector(string, *collector.Config) error
+	RegisterSink(string) error
 	Start() error
 	Shutdown()
 }
 
 type metermaid struct {
-	node node.Node
+	node *node.Node
 
 	defaultTags types.Meta
 
@@ -49,8 +43,8 @@ type metermaid struct {
 	memWeight float64
 
 	pricer    *pricing.Pricer
-	collector Collector
-	sink      sink.Sink
+	collector *collector.Engine
+	sink      *sink.MultiSink
 
 	done chan struct{}
 	log  *zap.Logger
@@ -59,15 +53,12 @@ type metermaid struct {
 // New returns a new MeterMaid instance based on the config
 func New(conf *Config) MeterMaid {
 	mm := &metermaid{
-		node:        *conf.Node,
+		node:        conf.Node,
 		cpuWeight:   0.5,
 		memWeight:   0.5,
-		collector:   conf.Collector,
-		sink:        conf.Sink,
-		pricer:      pricing.NewPricer(*conf.Node, conf.Logger),
 		defaultTags: conf.DefaultMeta,
-		log:         conf.Logger,
 		done:        make(chan struct{}),
+		log:         conf.Logger,
 	}
 
 	mm.init()
@@ -77,24 +68,42 @@ func New(conf *Config) MeterMaid {
 
 func (mm *metermaid) init() {
 	mm.log.Info("node",
-		zap.String("meta", mm.node.Meta.String()),
 		zap.Uint64("cpu", mm.node.CPUShares),
 		zap.Uint64("memory", mm.node.Memory),
 		zap.Time("bootime", time.Unix(0, int64(mm.node.BootTime))),
+		zap.String("meta", mm.node.Meta.String()),
 	)
 
-	mm.log.Info("pricer loaded", zap.String("backend", mm.pricer.Name()))
+	mm.collector = collector.NewEngine(mm.log)
+	mm.sink = sink.NewMultiSink(mm.log)
+	mm.pricer = pricing.NewPricer(*mm.node, mm.log)
 
-	if mm.sink == nil {
-		mm.sink = &sink.StdoutSink{}
+	mm.log.Info("pricer loaded", zap.String("backend", mm.pricer.Name()))
+}
+
+func (mm *metermaid) RegisterSink(typ string) error {
+	snk, err := sink.New(typ)
+	if err == nil {
+		mm.sink.Register(snk)
+		mm.log.Info("sink registered", zap.String("name", snk.Name()))
 	}
-	mm.log.Info("sink loaded", zap.String("name", mm.sink.Name()))
+	return err
+}
+
+func (mm *metermaid) RegisterCollector(typ string, conf *collector.Config) error {
+	cltr, err := collector.New(typ)
+	if err == nil {
+		conf.Node = mm.node
+		err = mm.collector.Register(cltr, conf)
+	}
+	return err
 }
 
 func (mm *metermaid) Start() error {
 	err := mm.pricer.Initialize()
 	if err == nil {
 		mm.collector.Start()
+		mm.log.Info("sinks loaded", zap.String("name", mm.sink.Name()))
 		go mm.run(mm.collector.RunStats())
 	}
 	return err

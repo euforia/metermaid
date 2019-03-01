@@ -33,6 +33,7 @@ func (s *Series) End() uint64 {
 	return s.Data.Last().Timestamp
 }
 
+// AddDataPoints adds the given points to the series
 func (s *Series) AddDataPoints(dps ...DataPoint) {
 	s.Data = s.Data.Insert(dps...)
 }
