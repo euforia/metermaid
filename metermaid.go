@@ -130,19 +130,22 @@ func (mm *metermaid) run(ch <-chan []collector.RunStats) {
 			mm.log.Info("failed to make series", zap.Error(err))
 		}
 
-		if len(seri) > 0 {
-			if err := mm.sink.Publish(seri...); err != nil {
-				mm.log.Info("failed to publish", zap.Error(err))
-			} else {
-				for _, s := range seri {
-					mm.log.Debug("published", zap.String("name", s.ID()))
-				}
-				mm.log.Info("published", zap.Int("count", len(seri)))
-			}
-		}
+		mm.sinkPublish(seri)
 	}
 
 	close(mm.done)
+}
+
+func (mm *metermaid) sinkPublish(seri []tsdb.Series) {
+	if len(seri) > 0 {
+		if err := mm.sink.Publish(seri...); err != nil {
+			mm.log.Info("failed to publish", zap.Error(err))
+		} else {
+			for _, s := range seri {
+				mm.log.Debug("published", zap.String("name", s.String()))
+			}
+		}
+	}
 }
 
 func (mm *metermaid) makePriceSeries(rs collector.RunStats) (tsdb.Series, error) {
@@ -163,22 +166,9 @@ func (mm *metermaid) makePriceSeries(rs collector.RunStats) (tsdb.Series, error)
 	case collector.ResourceContainer:
 		s.Name = metricNameCostContainer
 
-		var (
-			cu tsdb.DataPoints
-			mu tsdb.DataPoints
-		)
-
-		if rs.CPU > 0 {
-			cu = prices.Scale(mm.cpuWeight * float64(rs.CPU) / float64(mm.node.CPUShares))
-		} else {
-			cu = prices.Scale(mm.cpuWeight)
-		}
-
-		if rs.Memory > 0 {
-			mu = prices.Scale(mm.memWeight * float64(rs.Memory) / float64(mm.node.Memory))
-		} else {
-			mu = prices.Scale(mm.memWeight)
-		}
+		nd := mm.node
+		cu := prices.Scale(mm.cpuWeight * nd.CPUPercent(rs.CPU))
+		mu := prices.Scale(mm.memWeight * nd.MemoryPercent(rs.Memory))
 
 		s.Data = tsdb.DataPoints{tsdb.DataPoint{
 			Timestamp: uint64(time.Now().UnixNano()),

@@ -26,6 +26,15 @@ func init() {
 	flag.Parse()
 }
 
+func newLogger(dev bool) (*zap.Logger, error) {
+	conf := zap.NewDevelopmentConfig()
+	if !dev {
+		conf.DisableCaller = true
+		conf.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+	}
+	return conf.Build()
+}
+
 func registerCollectors(mm metermaid.MeterMaid, conf map[string]*collectorConfig) (err error) {
 	for k, v := range conf {
 		err = mm.RegisterCollector(k, &collector.Config{
@@ -45,11 +54,7 @@ func registerSinks(mm metermaid.MeterMaid, conf map[string]*sinkConfig) (err err
 		if err = mm.RegisterSink(k); err == nil {
 			continue
 		}
-		return
-	}
-
-	if *debug {
-		err = mm.RegisterSink("stdout")
+		break
 	}
 	return
 }
@@ -61,7 +66,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger, _ := zap.NewDevelopment()
+	logger, _ := newLogger(*debug)
 	nd, err := node.NewWithMetaString(*nodeMeta)
 	if err != nil {
 		logger.Info("node metadata partially loaded", zap.Error(err))

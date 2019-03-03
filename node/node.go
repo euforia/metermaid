@@ -107,15 +107,21 @@ type Node struct {
 // }
 
 // CPUPercent returns the percent ratio of the given shares relative to the
-// node
+// node. If the input is zero 1 is returned ie 100%
 func (n *Node) CPUPercent(shares uint64) float64 {
-	return float64(shares) / float64(n.CPUShares)
+	if shares != 0 {
+		return float64(shares) / float64(n.CPUShares)
+	}
+	return 1
 }
 
 // MemoryPercent returns the percent ratio of the given mem relative to the
-// node
+// node. If the input is zero 1 is returned ie 100%
 func (n *Node) MemoryPercent(mem uint64) float64 {
-	return float64(mem) / float64(n.Memory)
+	if mem != 0 {
+		return float64(mem) / float64(n.Memory)
+	}
+	return 1
 }
 
 // func (n *Node) UnmarshalMeta(meta []byte) {
