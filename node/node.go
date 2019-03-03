@@ -59,53 +59,6 @@ type Node struct {
 	Meta types.Meta
 }
 
-// func (n *Node) Match(query fl.Query) bool {
-// 	for k, filters := range query {
-// 		if n.MatchMeta(k, filters...) {
-// 			continue
-// 		}
-// 		return false
-// 	}
-// 	return true
-// }
-
-// func (n *Node) MatchMeta(name string, filters ...fl.Filter) bool {
-// 	val, ok := n.Meta[name]
-// 	if !ok {
-// 		return false
-// 	}
-
-// 	for _, filter := range filters {
-// 		if fl.MatchString(val, filter) {
-// 			continue
-// 		}
-// 		return false
-// 	}
-// 	return true
-// }
-
-// func (n *Node) MarshalMeta() []byte {
-// 	bt := make([]byte, 8)
-// 	binary.BigEndian.PutUint64(bt, n.BootTime)
-// 	cpu := make([]byte, 8)
-// 	binary.BigEndian.PutUint64(cpu, n.CPUShares)
-// 	mem := make([]byte, 8)
-// 	binary.BigEndian.PutUint64(mem, n.Memory)
-
-// 	data := append(cpu, mem...)
-// 	data = append(bt, data...)
-
-// 	data = append(data, []byte(n.Platform.Name+"\n")...)
-// 	data = append(data, []byte(n.Platform.Family+"\n")...)
-// 	data = append(data, []byte(n.Platform.Version+"\n")...)
-
-// 	for k, v := range n.Meta {
-// 		data = append(data, []byte(k+"="+v+"\n")...)
-// 	}
-
-// 	return data
-// }
-
 // CPUPercent returns the percent ratio of the given shares relative to the
 // node. If the input is zero 1 is returned ie 100%
 func (n *Node) CPUPercent(shares uint64) float64 {
@@ -123,29 +76,6 @@ func (n *Node) MemoryPercent(mem uint64) float64 {
 	}
 	return 1
 }
-
-// func (n *Node) UnmarshalMeta(meta []byte) {
-// 	n.BootTime = binary.BigEndian.Uint64(meta[:8])
-// 	n.CPUShares = binary.BigEndian.Uint64(meta[8:16])
-// 	n.Memory = binary.BigEndian.Uint64(meta[16:24])
-
-// 	if len(meta[24:]) > 0 {
-// 		list := bytes.Split(meta[24:], []byte("\n"))
-// 		n.Platform.Name = string(list[0])
-// 		n.Platform.Family = string(list[1])
-// 		n.Platform.Version = string(list[2])
-
-// 		if len(list) > 3 {
-// 			n.Meta = make(map[string]string)
-// 			for _, tagpair := range list[3:] {
-// 				if len(tagpair) > 0 {
-// 					kv := strings.Split(string(tagpair), "=")
-// 					n.Meta[kv[0]] = kv[1]
-// 				}
-// 			}
-// 		}
-// 	}
-// }
 
 // IsAWSSpot returns true if this nodes metadata contains the appropriate
 // spot tag key

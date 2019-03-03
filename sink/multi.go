@@ -38,7 +38,9 @@ func (sink *MultiSink) Register(s Sink) {
 	sink.sinks = append(sink.sinks, s)
 }
 
-// Publish satisfies the Sink interface
+// Publish satisfies the Sink interface.  It sequentially publishes
+// the given seri to each registered sink.
+// TODO: use go routine for each Sink
 func (sink *MultiSink) Publish(seri ...tsdb.Series) error {
 	l := len(sink.sinks)
 	if l == 0 {
