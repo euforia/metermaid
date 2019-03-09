@@ -41,8 +41,12 @@ func NewAWSNodeMeta() *AWSNodeMeta {
 func (nodemeta *AWSNodeMeta) Meta() (types.Meta, error) {
 	meta, err := getInstanceMeta()
 	if err == nil {
-		var reserve *ec2.Reservation
-		reserve, err = describeInstance(meta["Region"], meta["InstanceID"])
+		var (
+			reserve    *ec2.Reservation
+			region     = meta["Region"]
+			instanceID = meta["InstanceID"]
+		)
+		reserve, err = describeInstance(region, instanceID)
 		if err == nil {
 			instance := reserve.Instances[0]
 			//"InstanceLifecycle": "spot",
