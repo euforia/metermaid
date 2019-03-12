@@ -33,30 +33,6 @@ func (pp *AWSOnDemandPricer) Name() string {
 // filter key.
 func (pp *AWSOnDemandPricer) History(start, end time.Time, filter map[string]string) (tsdb.DataPoints, error) {
 	return pp.OnDemandHistory(filter)
-	// if err == nil {
-	// if len(dps) == 1 {
-	// 	return tsdb.DataPoints{
-	// 		tsdb.DataPoint{
-	// 			Timestamp: uint64(start.UnixNano()),
-	// 			Meta:      dps[0].Meta,
-	// 			Value:     dps[0].Value,
-	// 		},
-	// 		tsdb.DataPoint{
-	// 			Timestamp: uint64(end.UnixNano()),
-	// 			Meta:      dps[0].Meta,
-	// 			Value:     dps[0].Value,
-	// 		},
-	// 	}, nil
-
-	// 		last := dps.Last()
-	// 		return dps.Add(tsdb.DataPoint{
-	// 			Timestamp: uint64(end.UnixNano()),
-	// 			Value:     last.Value,
-	// 			Meta:      last.Meta,
-	// 		}), nil
-	// 	}
-	// }
-	// return dps, err
 }
 
 // OnDemandHistory returns the ondemand price for the node

@@ -22,7 +22,8 @@ func NewProvider(nd node.Node) Provider {
 	if nd.IsAWSSpot() {
 		return NewAWSSpotPricer()
 	}
-	return NewAWSOnDemandPricer()
+	// return NewAWSOnDemandPricer()
+	return &AWSOnDemandStaticPricer{}
 }
 
 // Pricer is a the canonical interface to interact with pricing data
