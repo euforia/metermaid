@@ -1,6 +1,7 @@
 package pricing
 
 import (
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -22,8 +23,22 @@ func NewProvider(nd node.Node) Provider {
 	if nd.IsAWSSpot() {
 		return NewAWSSpotPricer()
 	}
-	// return NewAWSOnDemandPricer()
-	return &AWSOnDemandStaticPricer{}
+
+	// Try ondemand API if available and have access
+	pricer := NewAWSOnDemandPricer()
+	_, err := pricer.History(time.Unix(0, int64(nd.BootTime)), time.Now(), map[string]string{
+		"Region":           nd.Meta["Region"],
+		"AvailabilityZone": nd.Meta["AvailabilityZone"],
+		"InstanceType":     nd.Meta["InstanceType"],
+	})
+
+	// Use static pricer if api fails
+	if err != nil {
+		log.Println(err)
+		return &AWSOnDemandStaticPricer{}
+	}
+
+	return pricer
 }
 
 // Pricer is a the canonical interface to interact with pricing data

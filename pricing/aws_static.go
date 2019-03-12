@@ -14,6 +14,7 @@ var (
 	}
 )
 
+// AWSOnDemandStaticPricer implements a static hardcoded pricer
 type AWSOnDemandStaticPricer struct{}
 
 // Name ...
